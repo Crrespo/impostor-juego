@@ -6,378 +6,281 @@
 <title>Impostor - Juego de Palabras</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #0d0d14;
-    --surface: #16161f;
-    --card: #1e1e2e;
-    --accent: #ff3c6e;
-    --accent2: #ffd166;
-    --accent3: #06d6a0;
-    --troll: #b44fff;
-    --text: #f0f0ff;
-    --muted: #7070a0;
-    --border: #2a2a40;
-    --radius: 18px;
-  }
-  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  html, body { height:100%; overflow:hidden; }
-  body {
-    font-family: 'Nunito', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    display:flex; flex-direction:column;
-    align-items:center; justify-content:center;
-    min-height:100vh;
-    position:relative;
-    overflow:hidden;
-  }
-  body::before {
-    content:'';
-    position:fixed; inset:0;
-    background: radial-gradient(ellipse at 20% 20%, rgba(255,60,110,0.12) 0%, transparent 50%),
-                radial-gradient(ellipse at 80% 80%, rgba(6,214,160,0.08) 0%, transparent 50%);
-    pointer-events:none;
-  }
-
-  .screen { display:none; width:100%; max-width:480px; padding:24px 20px; animation: fadeUp .35s ease; }
-  .screen.active { display:flex; flex-direction:column; }
-  .screen-scroll { overflow-y:auto; max-height:100vh; }
-  @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:none; } }
-
-  .logo { font-family:'Bebas Neue',sans-serif; font-size:64px; letter-spacing:4px; line-height:1;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    -webkit-background-clip:text; -webkit-text-fill-color:transparent; text-align:center; }
-  .logo-sub { text-align:center; color:var(--muted); font-size:13px; letter-spacing:2px; text-transform:uppercase; margin-top:4px; }
-  .logo-wrap { margin-bottom:32px; }
-
-  .btn {
-    display:flex; align-items:center; justify-content:center; gap:8px;
-    width:100%; padding:16px 24px; border:none; border-radius:var(--radius);
-    font-family:'Nunito',sans-serif; font-size:17px; font-weight:800;
-    cursor:pointer; transition: transform .12s, box-shadow .12s;
-    text-transform:uppercase; letter-spacing:1px;
-  }
-  .btn:active { transform:scale(0.96); }
-  .btn-primary { background: linear-gradient(135deg, var(--accent), #c0274f); color:#fff;
-    box-shadow: 0 8px 24px rgba(255,60,110,0.35); }
-  .btn-secondary { background: var(--card); color: var(--text); border:2px solid var(--border); }
-  .btn-green { background: linear-gradient(135deg, var(--accent3), #049e77); color:#001a12;
-    box-shadow: 0 8px 24px rgba(6,214,160,0.3); }
-  .btn-yellow { background: linear-gradient(135deg, var(--accent2), #e8a500); color:#1a1000;
-    box-shadow: 0 8px 24px rgba(255,209,102,0.3); }
-  .btn-troll { background: linear-gradient(135deg, var(--troll), #7b2fd4); color:#fff;
-    box-shadow: 0 8px 24px rgba(180,79,255,0.35); }
-  .btn + .btn { margin-top:12px; }
-  .btn-sm { padding:10px 18px; font-size:14px; width:auto; border-radius:12px; }
-
-  .input-wrap { margin-bottom:16px; }
-  label { display:block; font-size:13px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
-  input[type=number], input[type=text] {
-    width:100%; padding:14px 16px; background:var(--card); border:2px solid var(--border);
-    border-radius:12px; color:var(--text); font-family:'Nunito',sans-serif; font-size:16px; font-weight:700;
-    outline:none; transition:border-color .2s;
-  }
-  input:focus { border-color:var(--accent); }
-  input[type=number]::-webkit-inner-spin-button { -webkit-appearance:none; }
-
-  .stepper { display:flex; align-items:center; gap:12px; }
-  .stepper input { text-align:center; flex:1; }
-  .step-btn {
-    width:44px; height:44px; border-radius:12px; border:2px solid var(--border);
-    background:var(--card); color:var(--text); font-size:22px; cursor:pointer;
-    display:flex; align-items:center; justify-content:center; font-weight:900;
-    flex-shrink:0; transition:border-color .2s;
-  }
-  .step-btn:hover { border-color:var(--accent); }
-
-  .section-title { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:2px; margin-bottom:20px; }
-
-  .theme-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; overflow-y:auto; max-height:300px; padding-right:4px; }
-  .theme-grid::-webkit-scrollbar { width:4px; }
-  .theme-grid::-webkit-scrollbar-track { background:transparent; }
-  .theme-grid::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
-  .theme-card {
-    padding:14px 12px; border-radius:14px; border:2px solid var(--border);
-    background:var(--card); cursor:pointer; transition:.2s;
-    display:flex; flex-direction:column; gap:4px; position:relative;
-  }
-  .theme-card.selected { border-color:var(--accent); background:rgba(255,60,110,0.1); }
-  .theme-card .t-icon { font-size:22px; }
-  .theme-card .t-name { font-size:13px; font-weight:800; }
-  .theme-card .t-count { font-size:11px; color:var(--muted); }
-  .theme-card .t-eye { position:absolute; top:8px; right:8px; font-size:14px; opacity:0.5; cursor:pointer; }
-  .theme-card .t-eye:hover { opacity:1; }
-
-  .pass-card {
-    background: var(--card); border-radius:24px; border:2px solid var(--border);
-    padding:32px 24px; text-align:center;
-  }
-  .pass-avatar { font-size:64px; margin-bottom:8px; line-height:1; }
-  .pass-name { font-family:'Bebas Neue',sans-serif; font-size:36px; letter-spacing:2px; color:var(--accent2); }
-  .pass-instruction { font-size:14px; color:var(--muted); margin-top:8px; }
-
-  .word-card {
-    background: linear-gradient(135deg, var(--card), #13131c);
-    border-radius:24px; border:2px solid var(--border);
-    padding:40px 24px; text-align:center; position:relative; overflow:hidden;
-  }
-  .word-card::before {
-    content:''; position:absolute; inset:0;
-    background: radial-gradient(circle at 50% 0%, rgba(255,60,110,0.08), transparent 60%);
-  }
-  .word-role { font-size:12px; font-weight:800; letter-spacing:3px; text-transform:uppercase; color:var(--muted); margin-bottom:16px; }
-  .word-big { font-family:'Bebas Neue',sans-serif; font-size:52px; letter-spacing:3px;
-    background: linear-gradient(135deg, var(--text), var(--muted));
-    -webkit-background-clip:text; -webkit-text-fill-color:transparent; line-height:1; }
-  .word-big.impostor { background: linear-gradient(135deg, var(--accent), var(--accent2));
-    -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-  .word-big.troll-word { background: linear-gradient(135deg, var(--troll), #ff88ff);
-    -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-  .word-hint { font-size:13px; color:var(--muted); margin-top:16px; line-height:1.6; }
-  .hint-box { background:rgba(255,209,102,0.08); border:1px solid rgba(255,209,102,0.3); border-radius:12px; padding:12px 14px; margin-top:14px; text-align:left; }
-  .hint-label { font-size:11px; font-weight:800; color:var(--accent2); letter-spacing:2px; text-transform:uppercase; margin-bottom:4px; }
-  .hint-text { font-size:14px; color:var(--text); font-weight:700; }
-  .badge-impostor { display:inline-flex; align-items:center; gap:6px; background:rgba(255,60,110,0.15);
-    border:1px solid var(--accent); color:var(--accent); padding:6px 14px; border-radius:100px;
-    font-size:12px; font-weight:800; letter-spacing:1px; text-transform:uppercase; margin-bottom:16px; }
-  .badge-troll { display:inline-flex; align-items:center; gap:6px; background:rgba(180,79,255,0.15);
-    border:1px solid var(--troll); color:var(--troll); padding:6px 14px; border-radius:100px;
-    font-size:12px; font-weight:800; letter-spacing:1px; text-transform:uppercase; margin-bottom:16px; }
-
-  .timer-ring { position:relative; display:flex; align-items:center; justify-content:center; margin:0 auto 20px; }
-  .timer-svg { transform:rotate(-90deg); }
-  .timer-track { fill:none; stroke:var(--border); stroke-width:8; }
-  .timer-fill { fill:none; stroke:var(--accent); stroke-width:8; stroke-linecap:round;
-    stroke-dasharray:251; stroke-dashoffset:0; transition:stroke-dashoffset 1s linear, stroke .5s; }
-  .timer-text { position:absolute; font-family:'Bebas Neue',sans-serif; font-size:52px; letter-spacing:2px; color:var(--text); }
-
-  .vote-list { display:flex; flex-direction:column; gap:10px; }
-  .vote-item {
-    display:flex; align-items:center; justify-content:space-between;
-    padding:14px 18px; background:var(--card); border:2px solid var(--border);
-    border-radius:14px; cursor:pointer; transition:.2s; font-weight:800;
-  }
-  .vote-item:hover { border-color:var(--accent2); }
-  .vote-item.voted { border-color:var(--accent); background:rgba(255,60,110,0.1); }
-  .vote-name { font-size:16px; }
-  .vote-skip { background:var(--border); border-radius:12px; padding:10px; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; font-size:14px; font-weight:700; color:var(--muted); margin-top:10px; }
-
-  .result-big { font-family:'Bebas Neue',sans-serif; font-size:64px; letter-spacing:4px; text-align:center; line-height:1; }
-  .result-big.win { background:linear-gradient(135deg, var(--accent3), #06d6a0); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-  .result-big.lose { background:linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
-  .result-sub { text-align:center; font-size:16px; color:var(--muted); margin-top:8px; margin-bottom:24px; }
-  .result-reveal { background:var(--card); border-radius:16px; padding:20px; margin-bottom:20px; text-align:center; }
-  .result-label { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:2px; margin-bottom:6px; font-weight:700; }
-  .result-word { font-family:'Bebas Neue',sans-serif; font-size:40px; color:var(--accent2); letter-spacing:2px; }
-
-  .tabs { display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
-  .tab { flex:1; min-width:80px; padding:10px; text-align:center; border-radius:10px; font-weight:800; font-size:13px;
-    cursor:pointer; border:2px solid var(--border); background:var(--card); color:var(--muted); transition:.2s; }
-  .tab.active { border-color:var(--accent); color:var(--accent); background:rgba(255,60,110,0.1); }
-
-  .row { display:flex; gap:10px; }
-  .row .btn { flex:1; }
-  .divider { height:1px; background:var(--border); margin:20px 0; }
-  .mt { margin-top:16px; }
-  .player-chips { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
-  .chip { background:var(--card); border:2px solid var(--border); border-radius:100px; padding:6px 14px; font-size:13px; font-weight:700; display:flex; align-items:center; gap:6px; }
-  .chip.troll-chip { border-color:var(--troll); background:rgba(180,79,255,0.1); color:var(--troll); }
-  .chip .remove { color:var(--accent); cursor:pointer; font-size:16px; line-height:1; }
-  .chip .troll-toggle { cursor:pointer; font-size:14px; }
-  .player-input-row { display:flex; gap:8px; }
-  .player-input-row input { flex:1; }
-  .add-btn { padding:14px 18px; background:var(--accent); border:none; border-radius:12px; color:#fff; font-size:20px; cursor:pointer; font-weight:900; }
-  .progress-dots { display:flex; gap:6px; justify-content:center; margin-bottom:24px; }
-  .dot { width:8px; height:8px; border-radius:50%; background:var(--border); transition:.3s; }
-  .dot.active { background:var(--accent); transform:scale(1.3); }
-  .dot.done { background:var(--accent3); }
-
-  /* WORD VIEWER MODAL */
-  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:100; display:none; align-items:flex-end; justify-content:center; }
-  .modal-overlay.open { display:flex; }
-  .modal-box { background:var(--surface); border-radius:24px 24px 0 0; border-top:2px solid var(--border); padding:24px 20px; width:100%; max-width:480px; max-height:80vh; overflow-y:auto; animation:slideUp .3s ease; }
-  @keyframes slideUp { from { transform:translateY(100%); } to { transform:none; } }
-  .modal-title { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:2px; margin-bottom:16px; }
-  .word-chips { display:flex; flex-wrap:wrap; gap:8px; }
-  .word-chip { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:6px 12px; font-size:13px; font-weight:700; cursor:pointer; transition:.15s; user-select:none; }
-  .word-chip:hover { border-color:var(--accent); }
-  .word-chip.disabled { text-decoration:line-through; opacity:0.35; border-color:transparent; background:transparent; }
-  .word-chip.disabled:hover { opacity:0.5; border-color:var(--border); }
-  .modal-close { position:absolute; top:16px; right:20px; font-size:24px; cursor:pointer; color:var(--muted); }
-
-  /* TROLL */
-  .troll-hint-box { background:rgba(180,79,255,0.08); border:2px solid rgba(180,79,255,0.3); border-radius:14px; padding:16px; margin-top:14px; }
-  .troll-hint-title { font-size:11px; font-weight:800; color:var(--troll); letter-spacing:2px; text-transform:uppercase; margin-bottom:6px; }
-  .troll-secret { font-size:22px; font-weight:900; color:var(--troll); }
-
-  .troll-select { background:var(--card); border:2px solid var(--troll); border-radius:12px; padding:14px 16px; color:var(--text); font-family:'Nunito',sans-serif; font-size:15px; font-weight:700; width:100%; outline:none; cursor:pointer; }
-  .troll-name-input { background:var(--card); border:2px solid var(--troll); border-radius:12px; padding:14px 16px; color:var(--troll); font-family:'Nunito',sans-serif; font-size:16px; font-weight:900; width:100%; outline:none; }
-
-  /* THEME VIEWER */
-  .theme-viewer-item { background:var(--card); border-radius:14px; border:2px solid var(--border); padding:14px 16px; margin-bottom:10px; }
-  .theme-viewer-header { display:flex; justify-content:space-between; align-items:center; cursor:pointer; }
-  .theme-viewer-words { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; display:none; }
-  .theme-viewer-item.open .theme-viewer-words { display:flex; }
-
-  select option { background:var(--card); }
+:root{--bg:#0d0d14;--surface:#16161f;--card:#1e1e2e;--accent:#ff3c6e;--accent2:#ffd166;--accent3:#06d6a0;--text:#f0f0ff;--muted:#7070a0;--border:#2a2a40;--radius:18px}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;overflow:hidden}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 20%,rgba(255,60,110,.12) 0%,transparent 50%),radial-gradient(ellipse at 80% 80%,rgba(6,214,160,.08) 0%,transparent 50%);pointer-events:none}
+.screen{display:none;width:100%;max-width:480px;padding:24px 20px;animation:fadeUp .35s ease}
+.screen.active{display:flex;flex-direction:column}
+.scroll{overflow-y:auto;max-height:100vh}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:64px;letter-spacing:4px;line-height:1;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-align:center}
+.logo-sub{text-align:center;color:var(--muted);font-size:13px;letter-spacing:2px;text-transform:uppercase;margin-top:4px}
+.section-title{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;margin-bottom:20px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:16px 24px;border:none;border-radius:var(--radius);font-family:'Nunito',sans-serif;font-size:17px;font-weight:800;cursor:pointer;transition:transform .12s;text-transform:uppercase;letter-spacing:1px}
+.btn:active{transform:scale(.96)}
+.btn+.btn{margin-top:12px}
+.btn-primary{background:linear-gradient(135deg,var(--accent),#c0274f);color:#fff;box-shadow:0 8px 24px rgba(255,60,110,.35)}
+.btn-secondary{background:var(--card);color:var(--text);border:2px solid var(--border)}
+.btn-green{background:linear-gradient(135deg,var(--accent3),#049e77);color:#001a12;box-shadow:0 8px 24px rgba(6,214,160,.3)}
+.btn-yellow{background:linear-gradient(135deg,var(--accent2),#e8a500);color:#1a1000;box-shadow:0 8px 24px rgba(255,209,102,.3)}
+.btn-blue{background:linear-gradient(135deg,#4fc3f7,#0288d1);color:#001a2e;box-shadow:0 8px 24px rgba(79,195,247,.3)}
+.btn-sm{padding:10px 18px;font-size:14px;width:auto;border-radius:12px}
+.row{display:flex;gap:10px}.row .btn{flex:1}
+.mt{margin-top:16px}
+.divider{height:1px;background:var(--border);margin:20px 0}
+.input-wrap{margin-bottom:16px}
+label{display:block;font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+input[type=number],input[type=text]{width:100%;padding:14px 16px;background:var(--card);border:2px solid var(--border);border-radius:12px;color:var(--text);font-family:'Nunito',sans-serif;font-size:16px;font-weight:700;outline:none;transition:border-color .2s}
+input:focus{border-color:var(--accent)}
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+.stepper{display:flex;align-items:center;gap:12px}
+.stepper input{text-align:center;flex:1}
+.step-btn{width:44px;height:44px;border-radius:12px;border:2px solid var(--border);background:var(--card);color:var(--text);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:900;flex-shrink:0;transition:border-color .2s}
+.step-btn:hover{border-color:var(--accent)}
+.player-input-row{display:flex;gap:8px}
+.player-input-row input{flex:1}
+.add-btn{padding:14px 18px;background:var(--accent);border:none;border-radius:12px;color:#fff;font-size:20px;cursor:pointer;font-weight:900}
+.player-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.chip{background:var(--card);border:2px solid var(--border);border-radius:100px;padding:6px 14px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px}
+.chip .remove{color:var(--accent);cursor:pointer;font-size:16px;line-height:1}
+.theme-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;overflow-y:auto;max-height:280px;padding-right:4px}
+.theme-grid::-webkit-scrollbar{width:4px}
+.theme-grid::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.theme-card{padding:14px 12px;border-radius:14px;border:2px solid var(--border);background:var(--card);cursor:pointer;transition:.2s;display:flex;flex-direction:column;gap:4px;position:relative}
+.theme-card.selected{border-color:var(--accent);background:rgba(255,60,110,.1)}
+.theme-card .t-icon{font-size:22px}
+.theme-card .t-name{font-size:13px;font-weight:800}
+.theme-card .t-count{font-size:11px;color:var(--muted)}
+.theme-card .t-check{position:absolute;top:8px;right:8px;font-size:14px;opacity:0;transition:.2s;color:var(--accent)}
+.theme-card.selected .t-check{opacity:1}
+.code-big{font-family:'Bebas Neue',sans-serif;font-size:88px;letter-spacing:12px;background:linear-gradient(135deg,var(--accent2),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-align:center;line-height:1}
+.code-label{text-align:center;font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:6px}
+.lobby-player{display:flex;align-items:center;gap:12px;background:var(--card);border:2px solid var(--border);border-radius:14px;padding:12px 16px;margin-bottom:8px}
+.lobby-player .lp-avatar{font-size:24px}
+.lobby-player .lp-name{font-size:15px;font-weight:800;flex:1}
+.lobby-player .lp-tag{font-size:11px;color:var(--accent2);font-weight:700;text-transform:uppercase;letter-spacing:1px}
+.sdot{width:10px;height:10px;border-radius:50%;background:var(--accent3);flex-shrink:0}
+.code-input-big{font-family:'Bebas Neue',sans-serif;font-size:48px;letter-spacing:8px;text-align:center;background:var(--card);border:2px solid var(--accent);border-radius:16px;color:var(--accent2);padding:16px;width:100%;outline:none}
+.pass-card{background:var(--card);border-radius:24px;border:2px solid var(--border);padding:32px 24px;text-align:center}
+.pass-avatar{font-size:64px;margin-bottom:8px;line-height:1}
+.pass-name{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:2px;color:var(--accent2)}
+.word-card{background:linear-gradient(135deg,var(--card),#13131c);border-radius:24px;border:2px solid var(--border);padding:40px 24px;text-align:center;position:relative;overflow:hidden}
+.word-card::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 0%,rgba(255,60,110,.08),transparent 60%)}
+.word-role{font-size:12px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:16px}
+.word-big{font-family:'Bebas Neue',sans-serif;font-size:52px;letter-spacing:3px;background:linear-gradient(135deg,var(--text),var(--muted));-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1}
+.word-big.impostor{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hint-box{background:rgba(255,209,102,.08);border:1px solid rgba(255,209,102,.3);border-radius:12px;padding:12px 14px;margin-top:14px;text-align:left}
+.hint-label{font-size:11px;font-weight:800;color:var(--accent2);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}
+.hint-text{font-size:14px;color:var(--text);font-weight:700}
+.badge-imp{display:inline-flex;align-items:center;gap:6px;background:rgba(255,60,110,.15);border:1px solid var(--accent);color:var(--accent);padding:6px 14px;border-radius:100px;font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;margin-bottom:16px}
+.timer-ring{position:relative;display:flex;align-items:center;justify-content:center;margin:0 auto 20px}
+.timer-svg{transform:rotate(-90deg)}
+.timer-track{fill:none;stroke:var(--border);stroke-width:8}
+.timer-fill{fill:none;stroke:var(--accent);stroke-width:8;stroke-linecap:round;stroke-dasharray:251;stroke-dashoffset:0;transition:stroke-dashoffset 1s linear,stroke .5s}
+.timer-text{position:absolute;font-family:'Bebas Neue',sans-serif;font-size:52px;letter-spacing:2px;color:var(--text)}
+.vote-item{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:var(--card);border:2px solid var(--border);border-radius:14px;cursor:pointer;transition:.2s;font-weight:800;margin-bottom:10px}
+.vote-item:hover{border-color:var(--accent2)}
+.vote-item.voted{border-color:var(--accent);background:rgba(255,60,110,.1)}
+.result-big{font-family:'Bebas Neue',sans-serif;font-size:64px;letter-spacing:4px;text-align:center;line-height:1}
+.result-big.win{background:linear-gradient(135deg,var(--accent3),#06d6a0);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.result-big.lose{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.result-reveal{background:var(--card);border-radius:16px;padding:20px;margin-bottom:20px;text-align:center}
+.result-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;font-weight:700}
+.result-word{font-family:'Bebas Neue',sans-serif;font-size:40px;color:var(--accent2);letter-spacing:2px}
+.theme-viewer-item{background:var(--card);border-radius:14px;border:2px solid var(--border);padding:14px 16px;margin-bottom:10px}
+.theme-viewer-header{display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+.theme-viewer-words{display:none;flex-wrap:wrap;gap:6px;margin-top:12px}
+.word-chip{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:13px;font-weight:700;cursor:pointer;transition:.15s;user-select:none}
+.word-chip:hover{border-color:var(--accent)}
+.word-chip.disabled{text-decoration:line-through;opacity:.3;border-color:transparent;background:transparent}
+.progress-dots{display:flex;gap:6px;justify-content:center;margin-bottom:24px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--border);transition:.3s}
+.dot.active{background:var(--accent);transform:scale(1.3)}
+.dot.done{background:var(--accent3)}
+.online-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(6,214,160,.15);border:1px solid var(--accent3);color:var(--accent3);padding:6px 14px;border-radius:100px;font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase}
+.pulse{animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.hint-mode-group{display:flex;gap:8px;margin-bottom:0}
+.hm-btn{flex:1;padding:10px 6px;border-radius:10px;border:2px solid var(--border);background:var(--card);color:var(--muted);font-family:'Nunito',sans-serif;font-size:12px;font-weight:800;cursor:pointer;text-align:center;transition:.2s;text-transform:uppercase;letter-spacing:.5px}
+.hm-btn.active{border-color:var(--accent2);color:var(--accent2);background:rgba(255,209,102,.1)}
+.config-box{background:rgba(255,60,110,.05);border:1px solid rgba(255,60,110,.2);border-radius:14px;padding:16px;margin-bottom:16px}
+.config-box-label{font-size:13px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px}
 </style>
 </head>
 <body>
 
-<!-- MODAL: Word Viewer -->
-<div class="modal-overlay" id="modal-words">
-  <div class="modal-box" style="position:relative">
-    <div class="modal-close" onclick="closeModal()">✕</div>
-    <div class="modal-title" id="modal-title">Palabras</div>
-    <div class="word-chips" id="modal-word-list"></div>
-  </div>
-</div>
-
-<!-- ══ HOME ══ -->
+<!-- HOME -->
 <div class="screen active" id="screen-home" style="align-items:center;justify-content:center;min-height:100vh">
-  <div class="logo-wrap">
-    <div class="logo">IMPOSTOR</div>
-    <div class="logo-sub">Juego de Palabras</div>
-  </div>
+  <div style="margin-bottom:32px"><div class="logo">IMPOSTOR</div><div class="logo-sub">Juego de Palabras</div></div>
   <div style="width:100%;max-width:340px;display:flex;flex-direction:column;gap:12px">
-    <button class="btn btn-primary" onclick="goTo('screen-setup')">🎮 Nueva Partida</button>
+    <button class="btn btn-primary" onclick="goTo('screen-setup')">🎮 Partida Local</button>
+    <button class="btn btn-blue" onclick="goTo('screen-online-pick')">🌐 Crear / Unirse Online</button>
     <button class="btn btn-secondary" onclick="goTo('screen-all-words')">📖 Ver todas las palabras</button>
     <button class="btn btn-secondary" onclick="goTo('screen-rules')">📋 Reglas</button>
   </div>
-  <div style="margin-top:40px;font-size:12px;color:var(--muted);text-align:center">¿Quién es el Impostor?</div>
 </div>
 
-<!-- ══ ALL WORDS ══ -->
-<div class="screen screen-scroll" id="screen-all-words">
+<!-- ONLINE PICK -->
+<div class="screen" id="screen-online-pick" style="align-items:center;justify-content:center;min-height:100vh">
+  <div style="width:100%;max-width:340px">
+    <div class="section-title" style="text-align:center">🌐 Online</div>
+    <button class="btn btn-primary" onclick="initCreateRoom()">➕ Crear sala</button>
+    <button class="btn btn-blue mt" onclick="goTo('screen-join-lobby')">🔗 Unirse a sala</button>
+    <button class="btn btn-secondary mt" onclick="goTo('screen-home')">← Volver</button>
+  </div>
+</div>
+
+<!-- CREATE LOBBY (HOST) -->
+<div class="screen scroll" id="screen-create-lobby">
+  <div class="code-label" style="margin-top:8px">Código de sala</div>
+  <div class="code-big" id="host-code">···</div>
+  <div style="text-align:center;font-size:13px;color:var(--muted);margin-bottom:20px">Comparte este código con tus amigos</div>
+  <div style="font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Jugadores (<span id="lobby-count">1</span>)</div>
+  <div id="lobby-player-list"></div>
+  <div class="config-box">
+    <div class="config-box-label">⚙️ Configuración</div>
+    <div class="input-wrap">
+      <label>Impostores</label>
+      <div class="stepper">
+        <button class="step-btn" onclick="changeVal('ol-impostors',-1)">−</button>
+        <input type="number" id="ol-impostors" value="1" min="1" max="3" readonly/>
+        <button class="step-btn" onclick="changeVal('ol-impostors',1)">+</button>
+      </div>
+    </div>
+    <div class="input-wrap">
+      <label>Tiempo (segundos)</label>
+      <div class="stepper">
+        <button class="step-btn" onclick="changeVal('ol-timer',-10)">−</button>
+        <input type="number" id="ol-timer" value="60" min="10" max="300" readonly/>
+        <button class="step-btn" onclick="changeVal('ol-timer',10)">+</button>
+      </div>
+    </div>
+    <div class="input-wrap" style="margin-bottom:0">
+      <label>Pista para el Impostor</label>
+      <div class="hint-mode-group">
+        <div class="hm-btn active" id="ol-hm-palabra" onclick="setHintMode('palabra',this,'ol-')">💡 Palabra</div>
+        <div class="hm-btn" id="ol-hm-categoria" onclick="setHintMode('categoria',this,'ol-')">🏷️ Categoría</div>
+        <div class="hm-btn" id="ol-hm-ninguna" onclick="setHintMode('ninguna',this,'ol-')">🚫 Sin pista</div>
+      </div>
+    </div>
+  </div>
+  <div class="input-wrap">
+    <label>Categorías (elige una o varias)</label>
+    <div class="theme-grid" id="ol-theme-grid"></div>
+  </div>
+  <button class="btn btn-primary mt" onclick="hostStartGame()">▶ Empezar partida</button>
+  <button class="btn btn-secondary mt" onclick="leaveRoom()">✕ Cerrar sala</button>
+</div>
+
+<!-- JOIN LOBBY -->
+<div class="screen" id="screen-join-lobby" style="align-items:center;justify-content:center;min-height:100vh">
+  <div style="width:100%;max-width:340px">
+    <div class="section-title" style="text-align:center">🔗 Unirse a sala</div>
+    <div class="input-wrap"><label>Tu nombre</label><input type="text" id="join-name" placeholder="Escribe tu nombre…" maxlength="16"/></div>
+    <div class="input-wrap">
+      <label>Código de sala (3 dígitos)</label>
+      <input class="code-input-big" type="text" id="join-code" maxlength="3" placeholder="···" oninput="this.value=this.value.replace(/\D/g,'').slice(0,3)" inputmode="numeric"/>
+    </div>
+    <button class="btn btn-primary" onclick="joinRoom()">Entrar</button>
+    <button class="btn btn-secondary mt" onclick="goTo('screen-online-pick')">← Volver</button>
+  </div>
+</div>
+
+<!-- GUEST LOBBY -->
+<div class="screen" id="screen-guest-lobby" style="align-items:center;justify-content:center;min-height:100vh">
+  <div style="width:100%;max-width:340px;text-align:center">
+    <div class="online-badge pulse" style="margin:0 auto 16px;display:flex;width:fit-content">🟢 Conectado</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;margin-bottom:4px">Sala</div>
+    <div class="code-big" id="guest-code" style="font-size:60px">···</div>
+    <div style="font-size:14px;color:var(--muted);margin:12px 0 20px">Esperando a que el host inicie la partida…</div>
+    <div id="guest-player-list"></div>
+    <button class="btn btn-secondary mt" onclick="leaveRoom()">✕ Salir de la sala</button>
+  </div>
+</div>
+
+<!-- LOCAL SETUP -->
+<div class="screen scroll" id="screen-setup">
+  <div class="section-title">⚙️ Partida Local</div>
+  <div class="input-wrap">
+    <label>Jugadores</label>
+    <div class="player-input-row">
+      <input type="text" id="player-input" placeholder="Nombre del jugador…" onkeydown="if(event.key==='Enter')addPlayer()"/>
+      <button class="add-btn" onclick="addPlayer()">+</button>
+    </div>
+  </div>
+  <div class="player-chips" id="player-chips"></div>
+  <div class="input-wrap">
+    <label>Impostores</label>
+    <div class="stepper">
+      <button class="step-btn" onclick="changeVal('impostors',-1)">−</button>
+      <input type="number" id="impostors" value="1" min="1" max="3" readonly/>
+      <button class="step-btn" onclick="changeVal('impostors',1)">+</button>
+    </div>
+  </div>
+  <div class="input-wrap">
+    <label>Tiempo (segundos)</label>
+    <div class="stepper">
+      <button class="step-btn" onclick="changeVal('timer',-10)">−</button>
+      <input type="number" id="timer" value="60" min="10" max="300" readonly/>
+      <button class="step-btn" onclick="changeVal('timer',10)">+</button>
+    </div>
+  </div>
+  <div class="input-wrap">
+    <label>Pista para el Impostor</label>
+    <div class="hint-mode-group">
+      <div class="hm-btn active" id="hm-palabra" onclick="setHintMode('palabra',this)">💡 Palabra</div>
+      <div class="hm-btn" id="hm-categoria" onclick="setHintMode('categoria',this)">🏷️ Categoría</div>
+      <div class="hm-btn" id="hm-ninguna" onclick="setHintMode('ninguna',this)">🚫 Sin pista</div>
+    </div>
+  </div>
+  <div class="input-wrap">
+    <label>Categorías (elige una o varias)</label>
+    <div class="theme-grid" id="theme-grid"></div>
+  </div>
+  <div class="divider"></div>
+  <button class="btn btn-primary" onclick="startLocalGame()">▶ Empezar</button>
+  <button class="btn btn-secondary mt" onclick="goTo('screen-home')">← Volver</button>
+</div>
+
+<!-- RULES -->
+<div class="screen scroll" id="screen-rules">
+  <div class="section-title">📋 Reglas</div>
+  <div style="display:flex;flex-direction:column;gap:14px;font-size:15px;line-height:1.6;color:var(--muted)">
+    <div style="background:var(--card);border-radius:14px;padding:16px;border:2px solid var(--border)"><b style="color:var(--text);display:block;margin-bottom:6px">1. La palabra secreta</b>Todos ven la misma palabra… excepto el Impostor, que ve <span style="color:var(--accent);font-weight:800">IMPOSTOR</span> y una pista para intentar disimular.</div>
+    <div style="background:var(--card);border-radius:14px;padding:16px;border:2px solid var(--border)"><b style="color:var(--text);display:block;margin-bottom:6px">2. Las pistas</b>Cada jugador da una pista sin decir la palabra. El Impostor debe parecer que sabe de qué se habla.</div>
+    <div style="background:var(--card);border-radius:14px;padding:16px;border:2px solid var(--border)"><b style="color:var(--text);display:block;margin-bottom:6px">3. Votación</b>Al acabar el tiempo, todos votan quién creen que es el Impostor.</div>
+    <div style="background:var(--card);border-radius:14px;padding:16px;border:2px solid var(--border)"><b style="color:var(--text);display:block;margin-bottom:6px">4. Victoria</b><span style="color:var(--accent3);font-weight:800">Civiles ganan</span> si descubren al Impostor.<br><span style="color:var(--accent);font-weight:800">Impostor gana</span> si no le descubren.</div>
+    <div style="background:var(--card);border-radius:14px;padding:16px;border:2px solid var(--border)"><b style="color:var(--text);display:block;margin-bottom:6px">5. Comodín</b>Si le descubren, el Impostor puede intentar adivinar la palabra para salvarse.</div>
+  </div>
+  <button class="btn btn-secondary mt" onclick="goTo('screen-home')">← Volver</button>
+</div>
+
+<!-- ALL WORDS -->
+<div class="screen scroll" id="screen-all-words">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
     <div class="section-title" style="margin-bottom:0">📖 Palabras</div>
-    <button onclick="resetDisabled()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--muted);font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer">↺ Restaurar todas</button>
+    <button onclick="resetDisabled()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--muted);font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer">↺ Restaurar</button>
   </div>
   <div style="font-size:13px;color:var(--muted);margin-bottom:16px">Toca una palabra para tacharla y que no salga en partida</div>
   <div id="all-words-list"></div>
   <button class="btn btn-secondary mt" onclick="goTo('screen-home')">← Volver</button>
 </div>
 
-<!-- ══ RULES ══ -->
-<div class="screen screen-scroll" id="screen-rules">
-  <div class="section-title">📋 Reglas</div>
-  <div style="display:flex;flex-direction:column;gap:14px;font-size:15px;line-height:1.6;color:var(--muted)">
-    <div style="background:var(--card);border-radius:14px;padding:16px;border:2px solid var(--border)">
-      <b style="color:var(--text);display:block;margin-bottom:6px">1. La palabra secreta</b>
-      Todos ven la misma palabra… excepto el Impostor, que ve <span style="color:var(--accent);font-weight:800">IMPOSTOR</span> y recibe una pista para intentar adivinar de qué hablan los demás.
-    </div>
-    <div style="background:var(--card);border-radius:14px;padding:16px;border:2px solid var(--border)">
-      <b style="color:var(--text);display:block;margin-bottom:6px">2. Las pistas</b>
-      Cada jugador da una pista relacionada con la palabra sin decirla. El Impostor debe parecer que sabe de qué se habla.
-    </div>
-    <div style="background:var(--card);border-radius:14px;padding:16px;border:2px solid var(--border)">
-      <b style="color:var(--text);display:block;margin-bottom:6px">3. Votación</b>
-      Al acabar, todos votan quién creen que es el Impostor.
-    </div>
-    <div style="background:var(--card);border-radius:14px;padding:16px;border:2px solid var(--border)">
-      <b style="color:var(--text);display:block;margin-bottom:6px">4. Victoria</b>
-      <span style="color:var(--accent3);font-weight:800">Civiles ganan</span> si descubren al Impostor.<br>
-      <span style="color:var(--accent);font-weight:800">Impostor gana</span> si no le descubren.
-    </div>
-    <div style="background:var(--card);border-radius:14px;padding:16px;border:2px solid var(--border)">
-      <b style="color:var(--text);display:block;margin-bottom:6px">5. Comodín del Impostor</b>
-      Si le descubren, puede intentar adivinar la palabra para salvarse.
-    </div>
-    <div style="background:var(--card);border-radius:14px;padding:16px;border:2px solid rgba(180,79,255,0.4)">
-      <b style="color:var(--troll);display:block;margin-bottom:6px">👻 Modo Troll (secreto)</b>
-      Un jugador normal recibe una palabra diferente y totalmente falsa. Sin que nadie lo sepa, ese jugador también es un "agente doble" intentando despistar. Activa esta función en la configuración.
-    </div>
-  </div>
-  <div class="mt"></div>
-  <button class="btn btn-secondary" onclick="goTo('screen-home')">← Volver</button>
-</div>
-
-<!-- ══ SETUP ══ -->
-<div class="screen screen-scroll" id="screen-setup">
-  <div class="section-title">⚙️ Configurar Partida</div>
-
-  <div class="input-wrap">
-    <label>Jugadores</label>
-    <div class="player-input-row">
-      <input type="text" id="player-input" placeholder="Nombre del jugador..." onkeydown="if(event.key==='Enter')addPlayer()" />
-      <button class="add-btn" onclick="addPlayer()">+</button>
-    </div>
-  </div>
-  <div class="player-chips" id="player-chips"></div>
-
-  <div class="input-wrap">
-    <label>Número de Impostores</label>
-    <div class="stepper">
-      <button class="step-btn" onclick="changeVal('impostors',-1)">−</button>
-      <input type="number" id="impostors" value="1" min="1" max="3" readonly />
-      <button class="step-btn" onclick="changeVal('impostors',1)">+</button>
-    </div>
-  </div>
-
-  <div class="input-wrap">
-    <label>Tiempo por ronda (segundos)</label>
-    <div class="stepper">
-      <button class="step-btn" onclick="changeVal('timer',-10)">−</button>
-      <input type="number" id="timer" value="60" min="10" max="300" readonly />
-      <button class="step-btn" onclick="changeVal('timer',10)">+</button>
-    </div>
-  </div>
-
-  <!-- TROLL MODE -->
-  <div class="input-wrap">
-    <label>👻 Modo Troll <span style="color:var(--troll);font-size:11px">(función escondida)</span></label>
-    <div style="background:rgba(180,79,255,0.08);border:2px solid rgba(180,79,255,0.3);border-radius:14px;padding:16px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <span style="font-size:14px;font-weight:700">Activar Troll</span>
-        <label class="toggle-wrap" style="position:relative;display:inline-block;width:50px;height:26px">
-          <input type="checkbox" id="troll-toggle" style="opacity:0;width:0;height:0" onchange="toggleTroll()">
-          <span id="toggle-slider" style="position:absolute;cursor:pointer;inset:0;background:var(--border);border-radius:26px;transition:.3s">
-            <span style="position:absolute;content:'';height:18px;width:18px;left:4px;bottom:4px;background:#fff;border-radius:50%;transition:.3s;display:block" id="toggle-ball"></span>
-          </span>
-        </label>
-      </div>
-      <div id="troll-config" style="display:none">
-        <div class="input-wrap" style="margin-bottom:10px">
-          <label style="color:var(--troll)">¿A quién trollear?</label>
-          <select class="troll-select" id="troll-target">
-            <option value="">— Selecciona jugador —</option>
-          </select>
-        </div>
-        <div class="input-wrap" style="margin-bottom:0">
-          <label style="color:var(--troll)">Palabra falsa que verá</label>
-          <input type="text" class="troll-name-input" id="troll-word" placeholder="Ej: Calcetín, Nevera..." />
-        </div>
-        <div style="font-size:12px;color:var(--muted);margin-top:8px">El jugador trolleado verá esta palabra en lugar de la real. Los demás no lo saben 😈</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- THEMES -->
-  <div class="input-wrap">
-    <label>Tema</label>
-    <div class="theme-grid" id="theme-grid"></div>
-  </div>
-
-  <div class="divider"></div>
-  <button class="btn btn-primary" onclick="startGame()">▶ Empezar</button>
-  <button class="btn btn-secondary mt" onclick="goTo('screen-home')">← Volver</button>
-</div>
-
-<!-- ══ PASS PHONE ══ -->
+<!-- PASS PHONE -->
 <div class="screen" id="screen-pass" style="align-items:center;justify-content:center;min-height:100vh">
-  <div style="text-align:center;margin-bottom:24px">
-    <div style="font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;font-weight:700">Turno de</div>
-  </div>
+  <div style="text-align:center;margin-bottom:24px"><div style="font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;font-weight:700">Turno de</div></div>
   <div class="pass-card" style="width:100%;max-width:340px">
     <div class="pass-avatar" id="pass-avatar">👤</div>
     <div class="pass-name" id="pass-name">Jugador</div>
-    <div class="pass-instruction">Pasa el teléfono a este jugador y<br>toca cuando estés listo</div>
+    <div style="font-size:14px;color:var(--muted);margin-top:8px">Pasa el teléfono a este jugador<br>y toca cuando estés listo</div>
   </div>
   <button class="btn btn-primary mt" style="max-width:340px;width:100%" onclick="revealWord()">👁 Ver mi palabra</button>
 </div>
 
-<!-- ══ WORD REVEAL ══ -->
-<div class="screen screen-scroll" id="screen-word" style="align-items:center;justify-content:center;min-height:100vh">
+<!-- WORD REVEAL -->
+<div class="screen scroll" id="screen-word" style="align-items:center;justify-content:center;min-height:100vh">
   <div style="width:100%;max-width:340px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
       <div style="font-size:13px;color:var(--muted);font-weight:700">Jugador <span id="word-player-num">1</span> de <span id="word-player-total">4</span></div>
@@ -385,18 +288,31 @@
     </div>
     <div class="progress-dots" id="progress-dots"></div>
     <div class="word-card">
-      <div id="badge-impostor" class="badge-impostor" style="display:none">🔴 Eres el Impostor</div>
-      <div id="badge-troll" class="badge-troll" style="display:none">👻 Eres el Troll</div>
+      <div id="badge-impostor" class="badge-imp" style="display:none">🔴 Eres el Impostor</div>
       <div class="word-role" id="word-role">Tu palabra secreta es:</div>
       <div class="word-big" id="word-big">PALABRA</div>
       <div id="hint-container"></div>
-      <div class="word-hint" id="word-hint"></div>
     </div>
     <button class="btn btn-primary mt" onclick="nextPlayer()">Entendido ✓</button>
   </div>
 </div>
 
-<!-- ══ TIMER ══ -->
+<!-- ONLINE WORD REVEAL -->
+<div class="screen" id="screen-online-word" style="align-items:center;justify-content:center;min-height:100vh">
+  <div style="width:100%;max-width:340px">
+    <div class="online-badge" style="margin:0 auto 20px;display:flex;width:fit-content">🌐 Partida Online</div>
+    <div class="word-card">
+      <div id="ol-badge-impostor" class="badge-imp" style="display:none">🔴 Eres el Impostor</div>
+      <div class="word-role" id="ol-word-role">Tu palabra secreta es:</div>
+      <div class="word-big" id="ol-word-big">PALABRA</div>
+      <div id="ol-hint-container"></div>
+    </div>
+    <div style="font-size:13px;color:var(--muted);text-align:center;margin-top:16px" id="ol-waiting-msg">Pulsa cuando estés listo</div>
+    <button class="btn btn-primary mt" id="ol-ready-btn" onclick="onlinePlayerReady()">Listo ✓</button>
+  </div>
+</div>
+
+<!-- TIMER -->
 <div class="screen" id="screen-timer" style="align-items:center;justify-content:center;min-height:100vh">
   <div style="text-align:center;width:100%">
     <div class="section-title" style="text-align:center;margin-bottom:8px">¡Empezad a jugar!</div>
@@ -412,1054 +328,445 @@
       <button class="btn btn-secondary btn-sm" onclick="pauseTimer()" id="pause-btn">⏸ Pausar</button>
       <button class="btn btn-secondary btn-sm" onclick="resetTimer()">↺ Reiniciar</button>
     </div>
-    <button class="btn btn-yellow mt" onclick="goVote()" style="max-width:340px;margin:24px auto 0">🗳 Votar Ahora</button>
+    <button class="btn btn-yellow mt" onclick="goVote()" style="max-width:340px;margin:24px auto 0">🗳 Votar ahora</button>
   </div>
 </div>
 
-<!-- ══ VOTE ══ -->
-<div class="screen screen-scroll" id="screen-vote">
+<!-- VOTE -->
+<div class="screen scroll" id="screen-vote">
   <div class="section-title">🗳 Votación</div>
   <div style="font-size:14px;color:var(--muted);margin-bottom:16px">¿Quién crees que es el Impostor?</div>
-  <div class="vote-list" id="vote-list"></div>
-  <div class="vote-skip" onclick="skipVote()">⏭ Saltar (nadie eliminado)</div>
-  <button class="btn btn-primary mt" onclick="resolveVote()">✓ Confirmar Eliminación</button>
+  <div id="vote-list"></div>
+  <div onclick="skipVote()" style="background:var(--border);border-radius:12px;padding:10px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;font-size:14px;font-weight:700;color:var(--muted);margin-top:10px">⏭ Saltar (nadie eliminado)</div>
+  <button class="btn btn-primary mt" onclick="resolveVote()">✓ Confirmar eliminación</button>
 </div>
 
-<!-- ══ GUESS ══ -->
+<!-- GUESS -->
 <div class="screen" id="screen-guess" style="align-items:center;justify-content:center;min-height:100vh">
   <div style="width:100%;max-width:340px">
     <div class="pass-card">
       <div class="pass-avatar">🎯</div>
       <div class="pass-name" style="color:var(--accent)">¡ÚLTIMA OPORTUNIDAD!</div>
-      <div style="font-size:14px;color:var(--muted);margin-top:12px">El Impostor <b style="color:var(--text)" id="guess-impostor-name">?</b> ha sido descubierto.<br>¿Puede adivinar la palabra secreta?</div>
+      <div style="font-size:14px;color:var(--muted);margin-top:12px">El Impostor <b style="color:var(--text)" id="guess-impostor-name">?</b> ha sido descubierto.<br>¿Puede adivinar la palabra?</div>
     </div>
-    <div class="input-wrap mt">
-      <label>Adivina la palabra</label>
-      <input type="text" id="guess-input" placeholder="Escribe la palabra..." />
-    </div>
+    <div class="input-wrap mt"><label>Adivina la palabra</label><input type="text" id="guess-input" placeholder="Escribe la palabra…"/></div>
     <button class="btn btn-primary" onclick="checkGuess()">¡Confirmar!</button>
     <button class="btn btn-secondary mt" onclick="impostorFails()">❌ No sabe / saltar</button>
   </div>
 </div>
 
-<!-- ══ RESULT ══ -->
+<!-- RESULT -->
 <div class="screen" id="screen-result" style="align-items:center;justify-content:center;min-height:100vh">
   <div style="width:100%;max-width:340px;text-align:center">
-    <div class="result-big" id="result-title">¡GANAN!</div>
-    <div class="result-sub" id="result-sub">—</div>
+    <div class="result-big" id="result-title">—</div>
+    <div style="text-align:center;font-size:16px;color:var(--muted);margin-top:8px;margin-bottom:24px" id="result-sub">—</div>
     <div class="result-reveal">
-      <div class="result-label">Tema</div>
+      <div class="result-label">Categoría</div>
       <div style="font-size:16px;font-weight:700;margin-bottom:12px" id="result-theme">—</div>
       <div class="result-label">Palabra Secreta</div>
       <div class="result-word" id="result-word">—</div>
       <div class="result-label" style="margin-top:12px">Impostor(es)</div>
       <div style="font-size:16px;font-weight:700;color:var(--accent)" id="result-impostors">—</div>
-      <div id="result-troll-reveal" style="display:none;margin-top:12px">
-        <div class="result-label" style="color:var(--troll)">👻 El Troll era</div>
-        <div style="font-size:16px;font-weight:700;color:var(--troll)" id="result-troll-name">—</div>
-        <div style="font-size:13px;color:var(--muted);margin-top:4px">Vio la palabra: <span id="result-troll-word" style="color:var(--troll);font-weight:800">—</span></div>
-      </div>
     </div>
     <div class="row">
-      <button class="btn btn-green" onclick="playAgainSameSettings()">🔄 Mismos jugadores</button>
+      <button class="btn btn-green" onclick="playAgain()">🔄 Otra ronda</button>
       <button class="btn btn-secondary" onclick="goTo('screen-home')">🏠 Inicio</button>
     </div>
   </div>
 </div>
 
 <script>
-// ════════════════════════════════════════════
-// THEMES DATA
-// ════════════════════════════════════════════
-const THEMES = {
-  "Animales y Naturaleza": {
-    icon:"🌿",
-    words:[
-      // Animales
-      "Perro","Gato","León","Elefante","Tigre","Jirafa","Pingüino","Delfín","Cocodrilo","Serpiente",
-      "Mono","Águila","Lobo","Zorro","Caballo","Vaca","Cerdo","Pollo","Pato","Conejo",
-      "Tortuga","Pulpo","Tiburón","Ballena","Rana","Mariposa","Araña","Abeja","Hormiga","Mosquito",
-      "Búho","Flamenco","Camello","Cebra","Hipopótamo","Rinoceronte","Gorila","Panda","Koala","Canguro",
-      "Murciélago","Lagarto","Salamandra","Cangrejo","Langosta","Medusa","Foca","Nutria","Castor","Ardilla",
-      "Mapache","Tejón","Marmota","Halcón","Pelícano","Pavo","Avestruz","Cóndor","Loro","Tucán",
-      "Colibrí","Albatros","Gaviota","Cigüeña","Garza","Cuervo","Paloma","Gorrión","Lince","Puma",
-      "Jaguar","Guepardo","Oso pardo","Oso polar","Alce","Bisonte","Llama","Alpaca","Antílope","Gacela",
-      "Hiena","Chacal","Suricata","Wombat","Armadillo","Tapir","Manatí","Morsa","Manta raya","Carpa",
-      "Trucha","Salmón","Lamprea","Calamar","Erizo","Topo","Ñu","Búfalo","Pitón","Anaconda",
-      // Naturaleza
-      "Árbol","Flor","Hierba","Musgo","Cactus","Palmera","Bambú","Roble","Pino","Cedro",
-      "Abedul","Sauce","Eucalipto","Secuoya","Baobab","Rosa","Tulipán","Girasol","Lavanda","Orquídea",
-      "Dalia","Margarita","Amapola","Lirio","Jazmín","Enredadera","Hiedra","Vid","Olivo","Cerezo",
-      "Almendro","Higuera","Sol","Luna","Estrella","Cometa","Nube","Tormenta","Rayo","Arco iris",
-      "Aurora boreal","Eclipse","Marea","Catarata","Geyser","Terremoto","Erupción","Tornado","Huracán","Glaciar",
-      "Volcán","Isla","Desierto","Selva","Océano","Lago","Río","Cascada","Valle","Cañón",
-      "Arrecife","Coral","Alga","Playa","Montaña","Bosque","Marisma","Llanura","Páramo","Cueva"
-    ],
-    hints:{
-      "Araña":"Tiene 8 patas y captura insectos",
-      "Tiburón":"Animal marino con muchos dientes y aleta",
-      "Mariposa":"Insecto que sale de una crisálida",
-      "Ballena":"El mamífero más grande del mar",
-      "Pingüino":"Ave que no vuela y vive en zonas frías",
-      "Koala":"Marsupial australiano que come hojas",
-      "Oso polar":"Oso blanco del Ártico",
-      "Murciélago":"Único mamífero que vuela de noche",
-      "Flamenco":"Ave rosa que está a veces a la pata coja",
-      "Cóndor":"Una de las aves con mayor envergadura",
-      "Girasol":"Flor amarilla que sigue al sol",
-      "Aurora boreal":"Fenómeno de luces en el cielo polar",
-      "Volcán":"Montaña que puede expulsar lava",
-      "Arrecife":"Estructura submarina de coral",
-      "Glaciar":"Masa de hielo que se mueve lentamente"
-    }
-  },
+// ═══════════════════════════════════════
+// FIREBASE REST (sin SDK, solo fetch)
+// ═══════════════════════════════════════
+const FB = 'https://impostor-game-rtdb-default-rtdb.europe-west1.firebasedatabase.app';
+const req = (path,method,body)=>fetch(`${FB}/${path}.json`,{method,headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined}).then(r=>r.json());
+const fbSet    = (p,d)=>req(p,'PUT',d);
+const fbPatch  = (p,d)=>req(p,'PATCH',d);
+const fbGet    = (p)=>req(p,'GET');
+const fbDel    = (p)=>req(p,'DELETE');
+function fbListen(path,cb,ms=2500){
+  let last=null;
+  const poll=async()=>{try{const d=await fbGet(path);const s=JSON.stringify(d);if(s!==last){last=s;cb(d);}}catch(e){}};
+  poll(); return setInterval(poll,ms);
+}
 
-  "Comida": {
-    icon:"🍕",
-    words:[
-      "Pizza","Hamburguesa","Sushi","Paella","Taco","Pasta","Ensalada","Sopa","Pollo","Salmón",
-      "Atún","Langosta","Pulpo","Gambas","Mejillones","Calamar","Tortilla","Bocadillo","Kebab","Burrito",
-      "Curry","Ramen","Falafel","Shawarma","Croissant","Bagel","Baguette","Donuts","Crepe","Waffles",
-      "Pancakes","Quiche","Risotto","Lasaña","Carbonara","Pesto","Gazpacho","Ceviche","Guacamole","Hummus",
-      "Nachos","Patatas fritas","Nuggets","Alitas","Costillas","Chuletón","Filete","Jamón","Chorizo","Salchichón",
-      "Mozzarella","Brie","Camembert","Roquefort","Parmesano","Manchego","Cheddar","Ricotta","Mascarpone","Feta",
-      "Tofu","Edamame","Aguacate","Brócoli","Espinacas","Kale","Alcachofa","Espárrago","Puerro","Remolacha",
-      "Batata","Quinoa","Cuscús","Granola","Yogur","Kéfir","Kombucha","Helado","Tiramisú","Coulant",
-      "Cheesecake","Macarons","Éclairs","Brownie","Muffin","Cupcake","Tarta","Mousse","Flan","Arroz con leche",
-      "Chocolate","Caramelo","Turrón","Mazapán","Polvorón","Roscón","Torrija","Churros","Crema catalana","Profiterol",
-      "Sashimi","Dim Sum","Pad Thai","Tom Yum","Bibimbap","Pho","Momos","Shabu shabu","Bulgogi","Churrasco",
-      "Fondue","Raclette","Goulash","Pierogi","Borscht","Shakshuka","Tagine","Injera","Moussaka","Pastrami",
-      "Baklava","Halva","Mochi","Dorayaki","Churros","Buñuelos","Empanada","Arepa","Bandeja paisa","Tamale",
-      "Mole","Pozole","Chilaquiles","Pupusa","Gallo pinto","Causa limeña","Anticucho","Alfajor","Dulce de leche","Mate"
-    ],
-    hints:{
-      "Pizza":"Se hornea con masa, tomate y queso",
-      "Sushi":"Plato japonés con arroz y pescado crudo",
-      "Paella":"Plato valenciano con arroz y azafrán",
-      "Ramen":"Sopa japonesa con fideos y caldo",
-      "Gazpacho":"Sopa fría española de tomate",
-      "Ceviche":"Marisco marinado en limón, típico de Perú",
-      "Tiramisú":"Postre italiano con café y mascarpone",
-      "Fondue":"Se come mojando en queso o chocolate fundido",
-      "Mochi":"Bolita japonesa de arroz glutinoso",
-      "Baklava":"Dulce de Oriente Medio con miel y frutos secos"
-    }
-  },
-
-  "Deportes": {
-    icon:"⚽",
-    words:[
-      "Fútbol","Baloncesto","Tenis","Golf","Natación","Ciclismo","Atletismo","Boxeo","Lucha libre","Judo",
-      "Karate","Taekwondo","Esgrima","Tiro con arco","Equitación","Remo","Vela","Surf","Windsurf","Kitesurf",
-      "Esquí","Snowboard","Patinaje","Hockey","Rugby","Béisbol","Softball","Voleibol","Balonmano","Waterpolo",
-      "Polo","Críquet","Lacrosse","Squash","Badminton","Ping pong","Billar","Bolos","Dardos","Curling",
-      "Biatlón","Triatlón","Pentatlón","Halterofilia","Maratón","Sprint","Escalada","Paracaidismo","Ala delta","Parapente",
-      "Motociclismo","Fórmula 1","Rally","Motocross","BMX","Skateboard","Parkour","Crossfit","Yoga","Pilates",
-      "Zumba","Gimnasia artística","Gimnasia rítmica","Trampolín","Capoeira","Muay Thai","MMA","Sambo","Wrestling","Sumo",
-      "Pelota vasca","Pickleball","Padel","Floorball","Netball","Kabaddi","Sepak takraw","Canoa","Kayak","Rafting",
-      "Esports","Ajedrez","Damas","Póker","Tiro olímpico","Lanzamiento de jabalina","Lanzamiento de disco","Salto de altura","Salto de longitud","Salto con pértiga",
-      "Snowkite","Wakeboard","Wakeskate","Esquí acuático","Bodyboard","Longboard","Slackline","Orientación","Mountainbike","Ciclocross",
-      "Bouldering","Speedclimbing","Leadclimbing","Street workout","Calistenia","Parkour","Cheerleading","Pole dance","Acrobacia","Breakdance",
-      "Carrera de obstáculos","Spartan race","Ironman","Decatlón","Heptatlón","Marcha atlética","Carrera de sacos","Rana","Ajedrez rápido","Speedcubing",
-      "Fútbol sala","Fútbol playa","Fútbol americano","Flag football","Arena football","Rugby sevens","Beach volley","Snow volley","Goalball","Boccia",
-      "Tenis de mesa","Bádminton","Squash","Frontón","Raquetbol","Petanca","Boules","Croquet","Hurling","Gaélico"
-    ],
-    hints:{
-      "Esgrima":"Se combate con una espada larga y fina",
-      "Curling":"Se lanza una piedra sobre hielo con escobas",
-      "Waterpolo":"Fútbol pero dentro de una piscina",
-      "Capoeira":"Arte marcial brasileño que parece un baile",
-      "Biatlón":"Combina esquí de fondo y tiro con rifle",
-      "Kabaddi":"Deporte de contacto muy popular en India",
-      "Slackline":"Equilibrio sobre una cinta tensa",
-      "Sepak takraw":"Voleibol pero golpeando con el pie",
-      "Goalball":"Deporte paralímpico para personas con discapacidad visual",
-      "Petanca":"Se lanzan bolas metálicas al suelo"
-    }
-  },
-
-  "Países y Ciudades": {
-    icon:"🌍",
-    words:[
-      "España","Francia","Italia","Alemania","Portugal","Grecia","Polonia","Holanda","Bélgica","Suiza",
-      "Austria","Suecia","Noruega","Dinamarca","Finlandia","Irlanda","Croacia","Rumanía","Hungría","República Checa",
-      "Bulgaria","Serbia","Ucrania","Rusia","Estonia","Lituania","Letonia","Estados Unidos","Canadá","México",
-      "Brasil","Argentina","Chile","Colombia","Perú","Venezuela","Ecuador","Bolivia","Paraguay","Uruguay",
-      "Cuba","Jamaica","Haití","Costa Rica","Guatemala","Honduras","Japón","China","Corea del Sur","India",
-      "Pakistán","Irán","Arabia Saudí","Turquía","Israel","Egipto","Marruecos","Nigeria","Kenia","Sudáfrica",
-      "Etiopía","Ghana","Senegal","Camerún","Somalia","Australia","Nueva Zelanda","Filipinas","Indonesia","Tailandia",
-      "Vietnam","Malasia","Singapur","Nepal","Bangladesh","Sri Lanka","Kazajistán","Georgia","Armenia","Azerbaiyán",
-      "Madrid","Barcelona","París","Roma","Londres","Berlín","Ámsterdam","Bruselas","Viena","Estocolmo",
-      "Copenhague","Helsinki","Varsovia","Praga","Budapest","Bucarest","Belgrado","Kyiv","Moscú","Estambul",
-      "Nueva York","Los Ángeles","Miami","Chicago","Toronto","Ciudad de México","São Paulo","Buenos Aires","Lima","Bogotá",
-      "Santiago","Caracas","La Habana","Tokio","Pekín","Seúl","Nueva Delhi","Mumbai","Bangkok","Yakarta",
-      "Singapur","Kuala Lumpur","Manila","Ho Chi Minh","Karachi","Teherán","Bagdad","Dubai","Tel Aviv","El Cairo",
-      "Casablanca","Lagos","Nairobi","Johannesburgo","Adís Abeba","Accra","Dakar","Sídney","Auckland","Manila"
-    ],
-    hints:{
-      "Japón":"País del sol naciente con cultura del anime",
-      "Australia":"País y continente con canguros y koalas",
-      "Brasil":"El país más grande de América del Sur y tiene carnaval",
-      "Egipto":"País con pirámides y el río Nilo",
-      "Noruega":"País escandinavo con fiordos y auroras boreales",
-      "Singapur":"Ciudad-estado asiática muy avanzada tecnológicamente",
-      "Dubai":"Ciudad de los rascacielos en el desierto",
-      "Nueva York":"Ciudad de los rascacielos con la Estatua de la Libertad",
-      "Tokio":"Capital japonesa, la ciudad más poblada del mundo",
-      "Barcelona":"Ciudad española famosa por la Sagrada Família"
-    }
-  },
-
-  "Videojuegos": {
-    icon:"🎮",
-    words:[
-      "Minecraft","Fortnite","FIFA","Call of Duty","GTA","League of Legends","Valorant","Roblox","Among Us","Fall Guys",
-      "Apex Legends","Overwatch","Counter-Strike","Dota 2","World of Warcraft","Hearthstone","Clash Royale","Clash of Clans","Brawl Stars","Pokémon GO",
-      "Mario Kart","Super Smash Bros","Zelda","Super Mario","Pokémon","Sonic","Kirby","Metroid","Donkey Kong","Splatoon",
-      "God of War","The Last of Us","Uncharted","Spider-Man","Horizon","Ghost of Tsushima","Death Stranding","Bloodborne","Dark Souls","Elden Ring",
-      "Cyberpunk 2077","The Witcher","Skyrim","Fallout","Red Dead Redemption","Assassin's Creed","Far Cry","Watch Dogs","Dying Light","Days Gone",
-      "Resident Evil","Silent Hill","Five Nights at Freddy's","Outlast","Little Nightmares","Soma","Phasmophobia","Dead by Daylight","Poppy Playtime","Alien Isolation",
-      "Stardew Valley","Animal Crossing","The Sims","Planet Zoo","Planet Coaster","Two Point Hospital","Cities Skylines","Terraria","Subnautica","No Man's Sky",
-      "Genshin Impact","Honkai Star Rail","Wuthering Waves","Tower of Fantasy","Blue Protocol","Zenless Zone Zero","Arknights","Azur Lane","Fate Grand Order","Punishing Gray Raven",
-      "Street Fighter","Mortal Kombat","Tekken","Dragon Ball FighterZ","Guilty Gear","BlazBlue","King of Fighters","Multiversus","Nickelodeon All-Star Brawl","Brawlhalla",
-      "Rocket League","EA Sports FC","NBA 2K","Madden","WWE 2K","F1","Gran Turismo","Forza Horizon","Need for Speed","Burnout",
-      "Tetris","Pac-Man","Space Invaders","Pong","Asteroids","Donkey Kong","Galaga","Centipede","Frogger","Q*bert",
-      "Cuphead","Hollow Knight","Ori","Celeste","Hades","Dead Cells","Enter the Gungeon","Risk of Rain","Noita","Baba is You",
-      "Among Us","Phasmophobia","Gartic Phone","Jackbox","Tabletop Simulator","Pummel Party","It Takes Two","A Way Out","Devolver","Goose Game",
-      "Pokémon Rojo","Pokémon Azul","Pokémon Oro","Pokémon Plata","Pokémon Esmeralda","Pokémon Diamante","Pokémon Perla","Pokémon Negro","Pokémon Blanco","Pokémon X"
-    ],
-    hints:{
-      "Minecraft":"Juegas con bloques y puedes construir lo que quieras",
-      "Fortnite":"Battle royale donde caes en paracaídas en una isla",
-      "Among Us":"Hay impostores entre los tripulantes de una nave",
-      "Stardew Valley":"Heredas una granja y la cuidas en un pueblo tranquilo",
-      "Genshin Impact":"RPG con personajes de anime y mundo abierto",
-      "Hollow Knight":"Metroidvania de un caballero en un reino de insectos",
-      "Phasmophobia":"Investigas casas encantadas con equipamiento paranormal",
-      "Elden Ring":"RPG difícil de mundo abierto con dragones y jefes brutales",
-      "Cuphead":"Juego de disparos con estética de dibujos animados de los años 30",
-      "Rocket League":"Fútbol pero con coches que pueden volar"
-    }
-  },
-
-  "Streamers y Youtubers": {
-    icon:"📺",
-    words:[
-      "Ibai","TheGrefg","Auronplay","Rubius","Willyrex","Vegetta777","ElRubius","xQc","Ninja","Pokimane",
-      "Shroud","TimTheTatman","DrDisrespect","HasanAbi","Moistcritical","Jerma985","Karl Jacobs","Quackity","Dream","GeorgeNotFound",
-      "Sapnap","Technoblade","Tubbo","Ranboo","Fundy","Punz","BadBoyHalo","Skeppy","Antfrost","HBomb94",
-      "Mizkif","Emiru","QTCinderella","Valkyrae","Sykkuno","Disguised Toast","OfflineTV","Sodapoppin","Summit1g","Asmongold",
-      "Lolito","Spreen","Luzu","Mariana","Roier","Foolish","Quackity","JuanaGamer","MissaSinfonia","Gemita",
-      "Westcol","Carreraaa","Papigavi","Guanyar","Rivers","Folagor","Mangel","Perxitaa","Byviruzz","Knekro",
-      "MrBeast","Mark Rober","Vsauce","Veritasium","Kurzgesagt","CGP Grey","Wendover","Smarter Every Day","NileRed","Tom Scott",
-      "PewDiePie","Markiplier","Jacksepticeye","CrankGameplays","LazarBeam","VanossGaming","Terroriser","I AM WILDCAT","Daithi De Nogla","BasicallyIDoWrk",
-      "Midudev","Fireship","Theo","Primeagen","TJdevries","BenAwad","TraversyMedia","FreeCodeCamp","CS Dojo","TechWithTim",
-      "Nicki Nicole","Bizarrap","Quevedo","Bad Bunny","Rauw Alejandro","Jhay Cortez","Mora","Rels B","Cruz Cafuné","Recycled J",
-      "TheWillyrex","Alexby11","DjMaRiiO","JuanSGuarnizo","CriispyTeam","Outconsumer","Staxx","Desahogo","Nadie","Reborn",
-      "Ninja","Tyler1","IWillDominate","Doublelift","Faker","Caps","Jankos","Perkz","Rekkles","Hans Sama",
-      "Tfue","Nickmercs","Cloakzy","Bugha","Mongraal","Benjyfishy","Mitr0","Aqua","Bizzle","Zayt",
-      "Adin Ross","IShowSpeed","KSI","Logan Paul","Jake Paul","FaZe Jarvis","Ricegum","Deji","W2S","Vikkstar"
-    ],
-    hints:{
-      "Ibai":"Streamer vasco famoso por retransmitir la Velada del Año",
-      "TheGrefg":"Youtuber español de Fortnite con récord de viewers",
-      "xQc":"Streamer canadiense muy famoso por sus reacciones",
-      "MrBeast":"Youtuber famoso por sus retos y donaciones millonarias",
-      "Dream":"Youtuber de Minecraft famoso por sus speedruns",
-      "Pokimane":"Una de las streamers más conocidas de Twitch",
-      "Auronplay":"Streamer español conocido por su humor sarcástico",
-      "Spreen":"Streamer argentino muy popular en la comunidad hispana",
-      "IShowSpeed":"Youtuber americano conocido por sus reacciones explosivas",
-      "Faker":"El mejor jugador de League of Legends de la historia"
-    }
-  },
-
-  "Música y Artistas": {
-    icon:"🎵",
-    words:[
-      "Rock","Pop","Jazz","Blues","Soul","R&B","Hip-hop","Trap","Reguetón","Salsa",
-      "Cumbia","Bachata","Merengue","Flamenco","Tango","Reggae","Funk","Disco","Techno","House",
-      "Trance","Drum and bass","Dubstep","EDM","Country","Folk","Gospel","Ópera","Clásica","Indie",
-      "Alternativa","Grunge","Metal","Heavy metal","Punk","Ska","K-pop","J-pop","Afrobeat","Drill",
-      "Corrido tumbado","Narcocorrido","Banda","Norteño","Grupero","Vallenato","Champeta","Porro","Mapalé","Currulao",
-      "Bad Bunny","Rosalía","Bizarrap","Quevedo","C. Tangana","Rauw Alejandro","J Balvin","Maluma","Ozuna","Anuel AA",
-      "Nicki Nicole","Mora","Rels B","Cruz Cafuné","Recycled J","Dellafuente","Ptazeta","Morad","El Turko","Yung Beef",
-      "Taylor Swift","Billie Eilish","Olivia Rodrigo","Ariana Grande","Dua Lipa","Doja Cat","SZA","Beyoncé","Rihanna","Cardi B",
-      "Drake","Kendrick Lamar","Travis Scott","Post Malone","The Weeknd","Kanye West","Jay-Z","Eminem","Lil Wayne","Nicki Minaj",
-      "BTS","BLACKPINK","Stray Kids","Aespa","NewJeans","Seventeen","NCT","Monsta X","Ive","Le Sserafim",
-      "The Beatles","Rolling Stones","Led Zeppelin","Pink Floyd","Queen","David Bowie","Nirvana","Pearl Jam","Radiohead","Red Hot Chili Peppers",
-      "Michael Jackson","Madonna","Prince","Whitney Houston","Elvis Presley","Frank Sinatra","Amy Winehouse","Adele","Ed Sheeran","Harry Styles",
-      "Festival","Concierto","Tour","Álbum","Single","EP","Mixtape","Collab","Feature","Remix",
-      "Letra","Estribillo","Puente","Verso","Intro","Outro","Drop","Beat","Rima","Flow"
-    ],
-    hints:{
-      "Rosalía":"Artista española que mezcla flamenco con pop moderno",
-      "Bizarrap":"Productor argentino famoso por sus BZRP Music Sessions",
-      "Bad Bunny":"Artista de reguetón más escuchado del mundo varios años seguidos",
-      "K-pop":"Género musical coreano con grupos con muchos miembros",
-      "Drill":"Subgénero del rap con beats oscuros originario de Chicago",
-      "Corrido tumbado":"Mezcla de corrido mexicano con trap",
-      "Taylor Swift":"Artista pop-country americana de las más exitosas del mundo",
-      "Billie Eilish":"Cantante que se hizo famosa siendo adolescente con música alternativa",
-      "Kendrick Lamar":"Rapero conocido por su rap conceptual y poético",
-      "BTS":"Grupo de k-pop coreano más famoso a nivel mundial"
-    }
-  },
-
-  "Series y Películas": {
-    icon:"🎬",
-    words:[
-      "Breaking Bad","Better Call Saul","The Wire","The Sopranos","Game of Thrones","House of the Dragon","Succession","Euphoria","Squid Game","Dark",
-      "Stranger Things","The Crown","Peaky Blinders","Black Mirror","Sherlock","Fleabag","Sex Education","The Boys","Invincible","Hazbin Hotel",
-      "One Piece","Dragon Ball","Naruto","Bleach","Attack on Titan","Demon Slayer","Jujutsu Kaisen","My Hero Academia","Hunter x Hunter","Death Note",
-      "Fullmetal Alchemist","Spy x Family","Chainsaw Man","Vinland Saga","Berserk","One Punch Man","Mob Psycho","Overlord","Re:Zero","Sword Art Online",
-      "Avatar","Avatar 2","Avengers Endgame","Avengers Infinity War","Spider-Man","Batman","The Dark Knight","Joker","Venom","Black Panther",
-      "Iron Man","Thor","Doctor Strange","Guardians of the Galaxy","Ant-Man","Captain America","Shang-Chi","Eternals","Moon Knight","She-Hulk",
-      "Star Wars","Harry Potter","El Señor de los Anillos","El Hobbit","Piratas del Caribe","Indiana Jones","Jurassic Park","Matrix","Terminator","Mad Max",
-      "Interstellar","Inception","The Prestige","Oppenheimer","Dune","Blade Runner","Alien","Predator","RoboCop","Total Recall",
-      "El Padrino","Pulp Fiction","El Club de la Lucha","Forrest Gump","Titanic","Goodfellas","Taxi Driver","Psicosis","El Silencio de los Corderos","Seven",
-      "Toy Story","El Rey León","Frozen","Shrek","Kung Fu Panda","Madagascar","Cars","Wall-E","Up","Inside Out",
-      "Élite","La Casa de Papel","Vis a vis","Skam España","El Ministerio del Tiempo","Paquita Salas","Veneno","30 Monedas","Hierro","Fariña",
-      "Netflix","HBO","Disney+","Prime Video","Movistar+","Apple TV+","Peacock","Paramount+","Crunchyroll","Funimation",
-      "Recomendación","Spoiler","Temporada","Episodio","Cliffhanger","Plot twist","Protagonista","Antagonista","Villano","Antihéroe",
-      "Remake","Secuela","Precuela","Spin-off","Crossover","Universo compartido","Cameo","Post-créditos","Director","Guionista"
-    ],
-    hints:{
-      "Breaking Bad":"Serie sobre un profesor de química que fabrica drogas",
-      "Squid Game":"Serie coreana de supervivencia con juegos infantiles mortales",
-      "Attack on Titan":"Anime donde los humanos sobreviven en murallas contra gigantes",
-      "Dark":"Serie alemana de viajes en el tiempo en un pueblo",
-      "The Boys":"Serie donde los superhéroes son en realidad villanos",
-      "Euphoria":"Serie sobre adolescentes con problemas de drogas y relaciones",
-      "Dune":"Épica de ciencia ficción en un planeta desértico con especia",
-      "Interstellar":"Película de ciencia ficción sobre viajes a través de agujeros de gusano",
-      "La Casa de Papel":"Atraco al Banco de España con trajes rojos y máscaras",
-      "El Padrino":"Saga clásica sobre la mafia italiana en América"
-    }
-  },
-
-  "Tecnología y Redes": {
-    icon:"💻",
-    words:[
-      "Smartphone","Ordenador","Tablet","Smartwatch","Auriculares","Altavoz inteligente","Cámara","Drone","Robot","Televisión",
-      "Consola","PC Gaming","Steam Deck","PlayStation","Xbox","Nintendo Switch","VR","Meta Quest","Apple Vision Pro","Ray-Ban Meta",
-      "Internet","Wi-Fi","Bluetooth","USB-C","Cable HDMI","Batería","Cargador inalámbrico","Router","Servidor","Nube",
-      "App","Software","Hardware","Código","Programación","Algoritmo","Base de datos","Inteligencia artificial","Machine learning","ChatGPT",
-      "Claude","Gemini","Midjourney","Stable Diffusion","DALL-E","Sora","Copilot","Bard","GPT-4","LLM",
-      "Procesador","GPU","RAM","SSD","Tarjeta gráfica","Placa base","Fuente de alimentación","Refrigeración líquida","Overclock","BIOS",
-      "Instagram","TikTok","YouTube","Twitter/X","Facebook","Snapchat","Pinterest","Reddit","Discord","Telegram",
-      "WhatsApp","BeReal","Mastodon","Threads","Tumblr","LinkedIn","Twitch","Kick","Rumble","Odysee",
-      "NFT","Blockchain","Criptomoneda","Bitcoin","Ethereum","Web3","Metaverso","Roblox","Fortnite Creative","VRChat",
-      "Spotify","Apple Music","SoundCloud","Bandcamp","Tidal","Deezer","YouTube Music","Amazon Music","Napster","Shazam",
-      "Netflix","YouTube Premium","Twitch Prime","Discord Nitro","Spotify Premium","Xbox Game Pass","PlayStation Plus","Steam","Epic Games","GOG",
-      "Phishing","Hacker","Malware","Virus","Ransomware","VPN","Firewall","Antivirus","Bug","Parche de seguridad",
-      "Pixel","Frame rate","Resolución","4K","HDR","Refresh rate","Latencia","Ping","Ancho de banda","Fibra óptica",
-      "Meme","Viral","Trending","Hashtag","Stories","Reel","Short","Stream","Clip","Highlight"
-    ],
-    hints:{
-      "ChatGPT":"Inteligencia artificial conversacional de OpenAI",
-      "TikTok":"Red social de videos cortos muy popular entre jóvenes",
-      "Discord":"Aplicación de chat muy usada por gamers y comunidades",
-      "Steam Deck":"Consola portátil de Valve para jugar juegos de PC",
-      "NFT":"Archivo digital único registrado en blockchain",
-      "Metaverso":"Mundo virtual 3D donde interactúas con avatares",
-      "VPN":"Herramienta que oculta tu IP y cifra tu conexión",
-      "Phishing":"Estafa online que te hace creer que una web es real",
-      "GPU":"Componente del ordenador encargado de los gráficos",
-      "BeReal":"Red social que te avisa para hacer una foto espontánea"
-    }
-  },
-
-  "Famosos y Cultura Pop": {
-    icon:"⭐",
-    words:[
-      "Lionel Messi","Cristiano Ronaldo","Neymar","Mbappé","Erling Haaland","Vinicius","Pedri","Gavi","Bellingham","Lamine Yamal",
-      "LeBron James","Stephen Curry","Kevin Durant","Giannis Antetokounmpo","Nikola Jokic","Luka Dončić","Jayson Tatum","Victor Wembanyama","Cade Cunningham","Paolo Banchero",
-      "Max Verstappen","Lewis Hamilton","Carlos Sainz","Fernando Alonso","Charles Leclerc","Lando Norris","George Russell","Sergio Pérez","Oscar Piastri","Lance Stroll",
-      "Taylor Swift","Beyoncé","Rihanna","Dua Lipa","Billie Eilish","Ariana Grande","Olivia Rodrigo","Sabrina Carpenter","Chappell Roan","Gracie Abrams",
-      "Elon Musk","Mark Zuckerberg","Jeff Bezos","Bill Gates","Steve Jobs","Tim Cook","Sam Altman","Jensen Huang","Sundar Pichai","Satya Nadella",
-      "Zendaya","Timothée Chalamet","Florence Pugh","Sydney Sweeney","Jacob Elordi","Barry Keoghan","Paul Mescal","Saoirse Ronan","Anya Taylor-Joy","Hunter Schafer",
-      "Pedro Pascal","Oscar Isaac","Brendan Fraser","Tom Holland","Tom Hanks","Ryan Gosling","Margot Robbie","Cate Blanchett","Viola Davis","Meryl Streep",
-      "Bad Bunny","Rosalía","J Balvin","Maluma","Rauw Alejandro","Farruko","Jhay Cortez","Anuel AA","Ozuna","Daddy Yankee",
-      "Drake","Kendrick Lamar","Travis Scott","Tyler the Creator","Frank Ocean","J. Cole","Kanye West","Future","Lil Baby","Gunna",
-      "Kylie Jenner","Kim Kardashian","Kendall Jenner","Kourtney Kardashian","Chloe Kardashian","Khloe Kardashian","Khloé Kardashian","Kris Jenner","Kylie Minogue","Miley Cyrus",
-      "MrBeast","PewDiePie","KSI","Logan Paul","Ibai","Auronplay","TheGrefg","xQc","Pokimane","Ninja",
-      "Pep Guardiola","Carlo Ancelotti","Diego Simeone","Klopp","Mourinho","Zidane","Cruyff","Maradona","Pelé","Ronaldinho",
-      "Rafa Nadal","Carlos Alcaraz","Djokovic","Federer","Iga Świątek","Aryna Sabalenka","Coco Gauff","Emma Raducanu","Naomi Osaka","Serena Williams",
-      "Simone Biles","Nadia Comaneci","Usain Bolt","Carl Lewis","Michael Phelps","Mark Spitz","Caeleb Dressel","Léon Marchand","Katie Ledecky","Adam Peaty"
-    ],
-    hints:{
-      "Messi":"Argentino con 8 Balones de Oro y campeón del mundo en 2022",
-      "Elon Musk":"Dueño de Tesla, SpaceX y la red social X",
-      "Zendaya":"Actriz conocida por Euphoria y Spider-Man",
-      "MrBeast":"Youtuber más suscrito del mundo con retos millonarios",
-      "Kendrick Lamar":"Rapero que arrasó con su beef contra Drake",
-      "Carlos Alcaraz":"Tenista español más joven en ganar un Grand Slam",
-      "Simone Biles":"Gimnasta considerada la mejor de la historia",
-      "Pedro Pascal":"Actor chileno conocido por The Mandalorian y The Last of Us",
-      "Max Verstappen":"Tetracampeón del mundo de Fórmula 1",
-      "Kylie Jenner":"Influencer y empresaria de la familia Kardashian"
-    }
-  },
-
-  "Comida Rápida y Marcas": {
-    icon:"🍔",
-    words:[
-      "McDonald's","Burger King","KFC","Wendy's","Five Guys","Shake Shack","In-N-Out","Popeyes","Chick-fil-A","Carl's Jr",
-      "Subway","Jimmy John's","Jersey Mike's","Quiznos","Firehouse Subs","Potbelly","Blimpie","Wawa","Sheetz","Wingstop",
-      "Domino's","Pizza Hut","Papa John's","Little Caesars","Round Table","Sbarro","Cicis","Pizza Ranch","MOD Pizza","Blaze Pizza",
-      "Starbucks","Dunkin'","Tim Hortons","Peet's Coffee","Dutch Bros","Caribou","Coffee Bean","Panera Bread","Einstein Bros","Bruegger's",
-      "Taco Bell","Chipotle","Qdoba","Moe's","Del Taco","Baja Fresh","Rubio's","El Pollo Loco","Wingstop","Raising Cane's",
-      "Dairy Queen","Baskin-Robbins","Cold Stone","Marble Slab","Ben & Jerry's","Haagen-Dazs","Carvel","Sonic","Culver's","Whataburger",
-      "Coca-Cola","Pepsi","Fanta","Sprite","Mountain Dew","Dr Pepper","7UP","Lipton","Nestea","Monster",
-      "Red Bull","Gatorade","Powerade","Prime","Ghost","C4","Reign","Bang","Rockstar","NOS",
-      "Lay's","Doritos","Cheetos","Pringles","Ruffles","Fritos","Tostitos","Funyuns","Bugles","Chex Mix",
-      "Oreo","Nutella","Ferrero Rocher","Kinder","Milka","Toblerone","Kit Kat","Snickers","Twix","Reese's",
-      "Nestlé","Danone","Kellogg's","General Mills","Kraft","Heinz","Hellmann's","Tabasco","Frank's RedHot","Sriracha",
-      "IKEA","Zara","H&M","Primark","Shein","Nike","Adidas","Puma","New Balance","Vans",
-      "Apple","Samsung","Google","Microsoft","Sony","LG","Xiaomi","Huawei","OnePlus","Motorola",
-      "Amazon","Alibaba","eBay","Etsy","Wish","Temu","Walgreens","CVS","Target","Walmart"
-    ],
-    hints:{
-      "Chipotle":"Cadena de comida mexicana rápida y fresca",
-      "Five Guys":"Hamburguesería conocida por sus papas fritas y personalización",
-      "Starbucks":"La cadena de café más famosa del mundo con frappuccinos",
-      "Red Bull":"Bebida energética austríaca con el eslogan 'te da alas'",
-      "Oreo":"La galleta más vendida del mundo, negra con relleno blanco",
-      "Nutella":"Crema de avellanas y cacao de la marca italiana Ferrero",
-      "Shein":"App de moda ultrabarata de origen chino",
-      "Prime":"Bebida energética de los youtubers KSI y Logan Paul",
-      "Temu":"App de compras chinas con precios muy bajos",
-      "Tabasco":"Salsa picante roja en una botella pequeña icónica"
-    }
-  },
-
-  "Emociones y Situaciones": {
-    icon:"😊",
-    words:[
-      "Alegría","Tristeza","Miedo","Ira","Sorpresa","Asco","Amor","Odio","Envidia","Celos",
-      "Vergüenza","Culpa","Orgullo","Esperanza","Desesperación","Ansiedad","Estrés","Calma","Paz","Euforia",
-      "Melancolía","Nostalgia","Añoranza","Soledad","Aburrimiento","Curiosidad","Fascinación","Admiración","Respeto","Desconfianza",
-      "Cariño","Ternura","Compasión","Empatía","Antipatía","Indiferencia","Apatía","Entusiasmo","Motivación","Valentía",
-      "Cobardía","Inseguridad","Confianza","Autoestima","Humildad","Arrogancia","Vanidad","Gratitud","Generosidad","Lealtad",
-      "Traición","Sinceridad","Cinismo","Optimismo","Pesimismo","Sensibilidad","Frialdad","Impulsividad","Serenidad","Angustia",
-      "Pánico","Fobia","Obsesión","Euforia","Desolación","Frustración","Resignación","Alivio","Asombro","Expectación",
-      "Verguenza ajena","Cringe","FOMO","Burnout","Ghostear","Gaslighting","Love bombing","Manipulación","Invalidar","Normalizar",
-      "Enamorarse","Desamor","Ruptura","Reconciliación","Infidelidad","Cita","Ligue","Crush","Amigos con derechos","Situationship",
-      "Conocerse","Distancia","Toxicidad","Red flag","Green flag","Comunicación","Límites","Compromiso","Exclusividad","Oficializar",
-      "Aprobación","Rechazo","Ignorar","Confrontar","Disculparse","Perdonar","Rencor","Resentimiento","Superación","Cierre",
-      "Ansiedad social","Introvertido","Extrovertido","Ambivertido","Hipersensible","Empatía","Empatía cero","Narcisismo","Apego","Abandono",
-      "Flow","En mi época","Vibras","Energía","Manifestar","Gratitud","Mindfulness","Meditación","Journaling","Autocuidado",
-      "Procrastinar","Parálisis","Zona de confort","Salir de la zona de confort","Retos","Metas","Propósitos","Cambio","Crecimiento","Autosabotaje"
-    ],
-    hints:{
-      "FOMO":"Miedo a perderte algo que están haciendo los demás",
-      "Burnout":"Agotamiento total por demasiado trabajo o presión",
-      "Ghostear":"Desaparecer de golpe sin dar explicaciones a alguien",
-      "Gaslighting":"Hacer que alguien dude de su propia percepción de la realidad",
-      "Love bombing":"Abrumar a alguien con atención excesiva al principio",
-      "Situationship":"Relación a medias que no es ni amistad ni noviazgo",
-      "Red flag":"Señal de advertencia en una persona o relación",
-      "Cringe":"Algo tan vergonzoso que te hace encogerte",
-      "Crush":"Persona por la que sientes atracción romántica sin decírselo",
-      "Flow":"Estado mental donde estás totalmente concentrado y en tu salsa"
-    }
-  },
-
-  "El Cuerpo y la Salud": {
-    icon:"🏥",
-    words:[
-      "Cerebro","Corazón","Pulmones","Hígado","Riñones","Estómago","Intestinos","Páncreas","Bazo","Vesícula",
-      "Columna vertebral","Médula espinal","Nervios","Venas","Arterias","Capilares","Huesos","Músculos","Tendones","Ligamentos",
-      "Piel","Pelo","Uñas","Dientes","Lengua","Ojos","Oídos","Nariz","Boca","Garganta",
-      "Manos","Pies","Rodillas","Codos","Hombros","Cadera","Tobillo","Muñeca","Cervicales","Lumbares",
-      "Gripe","Resfriado","Fiebre","Tos","Estornudo","Dolor de cabeza","Migraña","Insomnio","Alergia","Asma",
-      "Diabetes","Hipertensión","Colesterol","Obesidad","Anemia","Osteoporosis","Artritis","Hipotiroidismo","Depresión","Ansiedad",
-      "Vacuna","Antibiótico","Antiinflamatorio","Analgésico","Antidepresivo","Pastilla","Jarabe","Pomada","Inyección","Suero",
-      "Médico","Enfermero","Cirujano","Fisioterapeuta","Psicólogo","Dentista","Oftalmólogo","Dermatólogo","Cardiólogo","Neurólogo",
-      "Hospital","Urgencias","Ambulancia","Camilla","Quirófano","UCI","Cama de hospital","Historial clínico","Receta","Analítica",
-      "Dieta","Ejercicio","Descanso","Hidratación","Nutrición","Suplemento","Proteína","Carbohidrato","Grasa","Vitamina",
-      "Yoga","Meditación","Respiración","Mindfulness","Terapia","Psicoanálisis","EMDR","TCC","Hipnosis","Acupuntura",
-      "Cirugía estética","Botox","Filler","Rinoplastia","Liposucción","Trasplante","Donación de órganos","Sangre","Médula ósea","Riñón",
-      "Quimioterapia","Radioterapia","Inmunoterapia","Biopsia","Ecografía","Resonancia","TAC","Rayos X","Electrocardiograma","Endoscopia",
-      "Salud mental","Bienestar","Autocuidado","Hábitos saludables","Rutina","Hidratación","Sueño","Sociabilización","Propósito","Equilibrio"
-    ],
-    hints:{
-      "Cerebro":"Órgano que controla todo el cuerpo y el pensamiento",
-      "Médula espinal":"Canal que transmite señales del cerebro al resto del cuerpo",
-      "Migraña":"Dolor de cabeza muy intenso que puede durar días",
-      "Anemia":"Cuando tienes pocas células rojas en la sangre",
-      "Fisioterapeuta":"Especialista que te trata el cuerpo con ejercicios y masajes",
-      "UCI":"Zona del hospital para los pacientes más graves",
-      "EMDR":"Técnica psicológica para tratar traumas con movimientos oculares",
-      "TCC":"Terapia psicológica basada en cambiar pensamientos negativos",
-      "Botox":"Inyección que paraliza músculos para quitar arrugas",
-      "Biopsia":"Extraer un trozo de tejido para analizarlo"
-    }
-  },
-
-  "Objetos Cotidianos": {
-    icon:"🏠",
-    words:[
-      "Silla","Mesa","Sofá","Cama","Armario","Estantería","Lámpara","Espejo","Alfombra","Cortina",
-      "Cojín","Manta","Almohada","Sábana","Edredón","Toalla","Jabón","Champú","Gel","Cepillo de dientes",
-      "Pasta de dientes","Secador","Plancha","Lavadora","Secadora","Lavavajillas","Nevera","Microondas","Horno","Cocina",
-      "Cafetera","Tostadora","Batidora","Aspiradora","Fregona","Escoba","Cubo","Detergente","Bayeta","Esponja",
-      "Fregadero","Ducha","Bañera","Inodoro","Grifo","Persiana","Puerta","Ventana","Balcón","Terraza",
-      "Mando a distancia","Cargador","Auriculares","Cable","Enchufe","Regleta","Bombilla","Ventilador","Aire acondicionado","Calefacción",
-      "Llave","Cerradura","Alarma","Timbre","Buzón","Ascensor","Escalera","Garaje","Sótano","Ático",
-      "Bolígrafo","Cuaderno","Carpeta","Mochila","Calculadora","Tijeras","Pegamento","Grapadora","Regla","Compás",
-      "Cartera","Monedero","Llavero","Paraguas","Guantes","Bufanda","Gorro","Gafas de sol","Gafas","Reloj",
-      "Botella de agua","Termo","Fiambrera","Tupperware","Bolsa reutilizable","Carrito de la compra","Báscula","Tensiómetro","Termómetro","Botiquín",
-      "Candado","Caja fuerte","Sobre","Sello","Paquete","Cinta adhesiva","Papel de aluminio","Film transparente","Papel de cocina","Servilleta",
-      "Tenedor","Cuchillo","Cuchara","Palillos","Plato","Taza","Vaso","Copa","Bol","Cazuela",
-      "Sartén","Olla","Wok","Colador","Rallador","Pelador","Tabla de cortar","Batidora de mano","Exprimidor","Tostadora",
-      "Bicicleta","Patín","Monopatín","Scooter eléctrico","Casco","Chaleco","Mochila de hidratación","Cantimplora","Brújula","Linterna"
-    ],
-    hints:{
-      "Fregona":"Herramienta para fregar el suelo con agua y jabón",
-      "Lavavajillas":"Electrodoméstico que limpia platos y vasos automáticamente",
-      "Regleta":"Alargador con varios enchufes y protección de sobretensión",
-      "Grapadora":"Objeto de oficina que une papeles con grapas de metal",
-      "Tensiómetro":"Aparato para medir la presión arterial",
-      "Botiquín":"Caja con materiales para primeros auxilios",
-      "Fiambrera":"Recipiente hermético para llevar comida",
-      "Colador":"Utensilio de cocina para escurrir líquidos de sólidos",
-      "Pelador":"Utensilio de cocina para quitar la piel de verduras",
-      "Wok":"Sartén honda y redonda de origen asiático"
-    }
-  },
-
-  "Internet y Memes": {
-    icon:"😂",
-    words:[
-      "Meme","Viral","Cringe","Based","Ratiado","Shadow ban","Shadowbanned","Cancelado","Woke","Stan",
-      "Simp","Chad","Karen","Boomer","Millennial","Gen Z","Gen Alpha","Zoomer","Normie","NPC",
-      "Flexear","Ghostear","Orbitar","Creepear","Stalkear","Doomscrolling","Procrastinar","Malvivir","Ratear","Hacer el ratón",
-      "POV","Plot twist","Character development","Main character","Side quest","Lore","Canon","Headcanon","Fanon","AU",
-      "Ship","OTP","OT3","Multishipper","Anti","Fandom","Fanfic","Fanart","Cosplay","Merch",
-      "Trigger","Gatekeeping","Parasocial","Echo chamber","Bubble","Algorithm","Feed","Timeline","FYP","Para ti",
-      "Ratio","Reposts","Quote tweet","Thread","Twitlonger","Pinned","Destacado","Story","Reel","Carrusel",
-      "No cap","Cap","Facts","Bet","Slay","Rizz","Lowkey","Highkey","Vibe","Mood",
-      "It's giving","Understood the assignment","Living rent free","Touch grass","Skill issue","L","W","Mid","Goat","GOAT",
-      "Ate and left no crumbs","Real","Unreal","Valid","Say less","No te da","Tremenda","Brutal","Savage","Iconic",
-      "Esta","Amogus","Giga chad","Nyan Cat","Doge","Trollface","Pepe the Frog","Distracted boyfriend","Drake","This is fine",
-      "NPC streamer","Green screen meme","Green screen","Deepfake","Shitpost","Copypasta","Pasta","Texto largo","Wall of text","TL;DR",
-      "AMA","ELI5","NSFW","SFW","OC","Repost","Cross-post","Brigading","Downvote","Upvote",
-      "Glowup","Era","Main character energy","Villain arc","Redemption arc","Rock bottom","Healing era","Slay era","Flop era","It's a phase"
-    ],
-    hints:{
-      "Ratio":"Cuando las respuestas o 'no me gusta' superan a los 'me gusta'",
-      "Simp":"Persona que hace todo por alguien que no le corresponde",
-      "Ghostear":"Dejar de responder a alguien sin aviso ni explicación",
-      "NPC":"Persona que parece seguir un guion sin pensar por sí misma",
-      "Doomscrolling":"Pasar horas desplazándote por noticias negativas sin parar",
-      "Rizz":"Habilidad natural para ligar y atraer a alguien",
-      "Parasocial":"Relación unilateral que sientes con alguien que no te conoce",
-      "Gatekeeping":"No compartir algo para que solo lo conozcan los 'elegidos'",
-      "Based":"Algo o alguien que tiene sus propias opiniones sin importar lo que digan",
-      "FYP":"Página 'Para ti' de TikTok donde aparecen videos virales"
-    }
-  }
+// ═══════════════════════════════════════
+// THEMES
+// ═══════════════════════════════════════
+const THEMES={
+"Animales y Naturaleza":{icon:"🌿",words:["Perro","Gato","León","Elefante","Tigre","Jirafa","Pingüino","Delfín","Cocodrilo","Serpiente","Mono","Águila","Lobo","Zorro","Caballo","Vaca","Cerdo","Pato","Conejo","Tortuga","Pulpo","Tiburón","Ballena","Rana","Mariposa","Araña","Abeja","Hormiga","Mosquito","Búho","Flamenco","Camello","Cebra","Hipopótamo","Rinoceronte","Gorila","Panda","Koala","Canguro","Murciélago","Lagarto","Salamandra","Cangrejo","Medusa","Foca","Nutria","Castor","Ardilla","Mapache","Halcón","Pelícano","Avestruz","Cóndor","Loro","Tucán","Colibrí","Gaviota","Cigüeña","Garza","Cuervo","Paloma","Lince","Puma","Jaguar","Guepardo","Oso pardo","Oso polar","Alce","Bisonte","Llama","Antílope","Gacela","Hiena","Suricata","Armadillo","Tapir","Morsa","Manta raya","Trucha","Salmón","Erizo","Topo","Búfalo","Pitón","Anaconda","Árbol","Flor","Musgo","Cactus","Palmera","Bambú","Roble","Pino","Cedro","Sauce","Eucalipto","Secuoya","Baobab","Rosa","Tulipán","Girasol","Lavanda","Orquídea","Dalia","Margarita","Amapola","Lirio","Jazmín","Enredadera","Vid","Olivo","Cerezo","Almendro","Higuera","Sol","Luna","Cometa","Nube","Tormenta","Rayo","Arco iris","Aurora boreal","Eclipse","Marea","Catarata","Glaciar","Volcán","Isla","Desierto","Selva","Lago","Río","Cascada","Valle","Cañón","Arrecife","Coral","Playa","Montaña","Bosque","Marisma","Llanura","Cueva","Geyser","Terremoto","Tornado","Huracán","Alga","Pantano"],hints:{"Araña":"Tiene ocho patas y teje una trampa de seda para cazar","Tiburón":"Depredador marino de piel áspera con aleta dorsal visible","Mariposa":"Insecto que nace de una crisálida y vuela de flor en flor","Ballena":"Mamífero marino que respira por un orificio en la cabeza","Pingüino":"Ave que no vuela, nada muy bien y vive en zonas muy frías","Koala":"Marsupial que duerme casi todo el día colgado en eucaliptos","Oso polar":"Gran mamífero blanco que caza sobre el hielo del Ártico","Murciélago":"Único mamífero capaz de volar, se orienta con ultrasonidos","Flamenco":"Ave zancuda rosada que suele quedarse sobre una sola pata","Volcán":"Montaña que expulsa magma desde el interior de la Tierra","Arrecife":"Estructura submarina formada por colonias de coral vivo","Glaciar":"Enorme masa de hielo que se desplaza muy lentamente","Cocodrilo":"Reptil de mandíbula enorme que acecha en ríos y pantanos","Pulpo":"Molusco con ocho brazos capaz de camuflarse al instante","Águila":"Rapaz de gran envergadura con una vista extraordinaria"}},
+"Comida":{icon:"🍕",words:["Pizza","Hamburguesa","Sushi","Paella","Tortilla de patatas","Bocadillo","Croquetas","Patatas bravas","Gazpacho","Salmorejo","Fabada","Cocido","Jamón","Chorizo","Morcilla","Chuleta","Filete","Salmón","Atún","Gambas","Mejillones","Calamares","Boquerones","Sardinas","Merluza","Bacalao","Pasta","Lasaña","Carbonara","Pesto","Risotto","Tiramisú","Croissant","Baguette","Donuts","Crepe","Waffles","Quiche","Ceviche","Guacamole","Hummus","Nachos","Kebab","Burrito","Ramen","Sopa","Ensalada","Lentejas","Garbanzos","Judías","Puré de patatas","Caldo","Estofado","Guiso","Asado","Mozzarella","Brie","Camembert","Roquefort","Parmesano","Manchego","Tortilla francesa","Revuelto","Huevos rotos","Tofu","Aguacate","Brócoli","Espinacas","Alcachofa","Espárrago","Remolacha","Batata","Quinoa","Granola","Yogur","Helado","Coulant","Cheesecake","Brownie","Muffin","Tarta","Mousse","Flan","Arroz con leche","Turrón","Mazapán","Polvorón","Roscón","Torrija","Churros","Crema catalana","Profiterol","Mochi","Baklava","Pad Thai","Fondue","Raclette","Goulash","Moussaka","Shakshuka","Tagine","Tempura","Gyoza","Dim Sum","Falafel","Shawarma","Samosa","Curry","Edamame","Sashimi","Bibimbap"],hints:{"Sushi":"Bolitas de arroz japonés prensado con pescado crudo encima","Paella":"Arroz con azafrán cocinado en una sartén grande y plana","Tortilla de patatas":"Plato español de huevos batidos con patata frita, con o sin cebolla","Gazpacho":"Sopa fría española hecha principalmente de tomate triturado en frío","Salmorejo":"Crema fría cordobesa más espesa que el gazpacho, se sirve con huevo duro","Croquetas":"Bolitas rebozadas y fritas con bechamel cremosa dentro","Churros":"Masa frita en forma de palo que se moja en chocolate caliente","Crema catalana":"Postre con natilla y una capa de azúcar quemado por encima","Tiramisú":"Postre italiano de capas con bizcocho empapado en café y mascarpone","Fondue":"Se come mojando trocitos de pan en queso fundido o fruta en chocolate","Ramen":"Sopa japonesa con fideos largos, caldo rico y huevo marinado","Mochi":"Bolita japonesa esponjosa de arroz glutinoso con relleno dulce","Baklava":"Dulce hecho con hojaldre muy fino, miel y frutos secos triturados","Tempura":"Técnica japonesa de rebozado muy ligero y crujiente","Bibimbap":"Plato coreano de arroz con verduras, carne y huevo mezclado todo junto"}},
+"Deportes":{icon:"⚽",words:["Fútbol","Baloncesto","Tenis","Golf","Natación","Ciclismo","Atletismo","Boxeo","Judo","Karate","Taekwondo","Esgrima","Tiro con arco","Equitación","Remo","Vela","Surf","Esquí","Snowboard","Patinaje","Hockey","Rugby","Béisbol","Voleibol","Balonmano","Waterpolo","Squash","Bádminton","Ping pong","Billar","Bolos","Dardos","Curling","Biatlón","Triatlón","Halterofilia","Maratón","Escalada","Paracaidismo","Ala delta","Motociclismo","Fórmula 1","Rally","Motocross","BMX","Skateboard","Parkour","Crossfit","Yoga","Pilates","Gimnasia artística","Gimnasia rítmica","Trampolín","Capoeira","Muay Thai","MMA","Wrestling","Sumo","Pelota vasca","Padel","Floorball","Canoa","Kayak","Rafting","Salto de altura","Salto de longitud","Salto con pértiga","Wakeboard","Bodyboard","Longboard","Slackline","Mountainbike","Bouldering","Street workout","Calistenia","Breakdance","Ironman","Decatlón","Marcha atlética","Fútbol sala","Fútbol playa","Fútbol americano","Rugby sevens","Beach volley","Petanca","Hurling","Esports","Ajedrez","Lanzamiento de disco","Lanzamiento de jabalina","Natación sincronizada","Polo acuático","Tiro olímpico","Pentatlón","Ciclocross","Speedclimbing","Carreras de obstáculos","Orientación","Kitesurf","Windsurf"],hints:{"Esgrima":"Se combate a distancia con una espada larga y delgada","Curling":"Se empuja una piedra sobre hielo y se barre el suelo delante para guiarla","Waterpolo":"Como el fútbol pero dentro del agua, lanzando con la mano","Capoeira":"Arte marcial brasileña que combina lucha con movimientos de baile","Biatlón":"Combina el esquí de fondo con disparos al blanco con rifle","Slackline":"Se camina en equilibrio sobre una cinta tensa entre dos puntos","Petanca":"Se lanzan bolas metálicas intentando acercarse lo más posible a un boliche","Hurling":"Deporte tradicional irlandés muy rápido que mezcla hockey y lacrosse","Padel":"Parecido al tenis pero en pista cerrada con paredes de cristal","Bouldering":"Escalada en bloque sin cuerda sobre paredes bajas de búlder"}},
+"Países y Ciudades":{icon:"🌍",words:["España","Francia","Italia","Alemania","Portugal","Grecia","Polonia","Países Bajos","Bélgica","Suiza","Austria","Suecia","Noruega","Dinamarca","Finlandia","Irlanda","Croacia","Rumanía","Hungría","República Checa","Bulgaria","Serbia","Ucrania","Rusia","Estonia","Lituania","Letonia","Estados Unidos","Canadá","México","Brasil","Argentina","Japón","China","Corea del Sur","India","Irán","Arabia Saudí","Turquía","Israel","Egipto","Marruecos","Nigeria","Kenia","Sudáfrica","Etiopía","Australia","Nueva Zelanda","Filipinas","Indonesia","Tailandia","Vietnam","Malasia","Singapur","Nepal","Kazajistán","Georgia","Armenia","Albania","Montenegro","Madrid","Barcelona","París","Roma","Londres","Berlín","Ámsterdam","Bruselas","Viena","Estocolmo","Copenhague","Helsinki","Varsovia","Praga","Budapest","Bucarest","Belgrado","Kiev","Moscú","Estambul","Nueva York","Los Ángeles","Miami","Chicago","Toronto","Tokio","Pekín","Seúl","Nueva Delhi","Mumbai","Bangkok","Yakarta","Kuala Lumpur","Manila","Teherán","Bagdad","Dubai","Tel Aviv","El Cairo","Casablanca","Lagos","Nairobi","Johannesburgo","Sídney","Auckland","Riad","Doha","Varsovia","Sofía","Zagreb","Tiflis"],hints:{"Japón":"País del Extremo Oriente famoso por el anime, el sushi y el monte Fuji","Australia":"Único país que es a la vez un continente entero, hogar del canguro","Brasil":"El país más extenso de América del Sur, con la selva amazónica y el carnaval","Egipto":"País del norte de África con pirámides milenarias y el río Nilo","Noruega":"País escandinavo con fiordos espectaculares y auroras boreales en invierno","Singapur":"Pequeña ciudad-estado asiática ultramoderna y extremadamente limpia","Dubai":"Ciudad de rascacielos futuristas construida en medio del desierto árabe","Nueva York":"La ciudad más poblada de EE.UU., hogar de la Estatua de la Libertad","Tokio":"Capital de Japón y una de las urbes más pobladas y tecnológicas del planeta","Barcelona":"Ciudad costera española conocida por la Sagrada Família y el Camp Nou"}},
+"Videojuegos":{icon:"🎮",words:["Minecraft","Fortnite","FIFA","Call of Duty","GTA","League of Legends","Valorant","Roblox","Among Us","Fall Guys","Apex Legends","Overwatch","Counter-Strike","Dota 2","World of Warcraft","Hearthstone","Clash Royale","Clash of Clans","Brawl Stars","Pokémon GO","Mario Kart","Super Smash Bros","Zelda","Super Mario","Pokémon","Sonic","Splatoon","God of War","The Last of Us","Spider-Man","Horizon","Elden Ring","Dark Souls","Bloodborne","Cyberpunk 2077","The Witcher","Skyrim","Red Dead Redemption","Assassin's Creed","Far Cry","Resident Evil","Silent Hill","Five Nights at Freddy's","Phasmophobia","Dead by Daylight","Poppy Playtime","Little Nightmares","Outlast","Alien Isolation","Stardew Valley","Animal Crossing","The Sims","Terraria","Subnautica","No Man's Sky","Genshin Impact","Honkai Star Rail","Zenless Zone Zero","Wuthering Waves","Street Fighter","Mortal Kombat","Tekken","Dragon Ball FighterZ","Guilty Gear","Brawlhalla","Multiversus","King of Fighters","Rocket League","NBA 2K","F1","Gran Turismo","Forza Horizon","Need for Speed","Tetris","Pac-Man","Space Invaders","Donkey Kong","Galaga","Cuphead","Hollow Knight","Celeste","Hades","Dead Cells","Enter the Gungeon","Ori","Undertale","Baba is You","Jackbox","Gartic Phone","It Takes Two","A Way Out","Goose Game","Portal","Half-Life","Left 4 Dead","Team Fortress 2","Baldur's Gate 3","Disco Elysium","Outer Wilds","Return of the Obra Dinn","Tunic"],hints:{"Minecraft":"Construyes lo que quieras con bloques en un mundo infinito generado aleatoriamente","Fortnite":"Caes en paracaídas en una isla y el último jugador en pie gana la partida","Among Us":"Hay un traidor entre los tripulantes de una nave que hace sabotajes en secreto","Stardew Valley":"Heredas una granja abandonada y la vas recuperando en un pueblo tranquilo","Genshin Impact":"RPG de anime con mundo abierto y personajes de distintos elementos naturales","Hollow Knight":"Metroidvania oscuro en el que controlas un pequeño caballero insecto bajo tierra","Phasmophobia":"Investigas casas encantadas con equipamiento de cazafantasmas para identificar el tipo de fantasma","Elden Ring":"RPG de mundo abierto extremadamente difícil, lleno de jefes brutales y lore profundo","Cuphead":"Juego de disparos con estética de dibujos animados de los años 30 muy difícil","Rocket League":"Fútbol con coches propulsados por cohetes que pueden salir disparados por los aires"}},
+"Streamers y Creadores":{icon:"📺",words:["Ibai","TheGrefg","Auronplay","Rubius","Willyrex","Vegetta777","Lolito","Spreen","Luzu","Roier","Quackity","JuanaGamer","Gemita","Folagor","Mangel","Perxitaa","Byviruzz","Knekro","Westcol","Carreraaa","xQc","Ninja","Pokimane","Shroud","HasanAbi","Moistcritical","Mizkif","Emiru","Valkyrae","Sykkuno","Disguised Toast","Sodapoppin","Summit1g","Asmongold","QTCinderella","Karl Jacobs","Dream","GeorgeNotFound","Sapnap","Tubbo","Ranboo","Technoblade","BadBoyHalo","Skeppy","HBomb94","Fundy","Wilbur Soot","MrBeast","Mark Rober","Vsauce","Veritasium","Kurzgesagt","Tom Scott","Smarter Every Day","NileRed","PewDiePie","Markiplier","Jacksepticeye","LazarBeam","VanossGaming","CrankGameplays","Midudev","Fireship","Theo","Primeagen","Adin Ross","IShowSpeed","KSI","Logan Paul","Jake Paul","Ricegum","W2S","Vikkstar","Tfue","Nickmercs","Bugha","Mongraal","Benjyfishy","Faker","Caps","Jankos","Rekkles","Perkz","Doublelift","Tyler1","Hans Sama","Bjergsen","Auronplay","Luzu","Outconsumer","Staxx","CriispyTeam","JuanSGuarnizo","DjMaRiiO","Alexby11","Rivers","Folagor"],hints:{"Ibai":"Streamer vasco muy famoso por organizar la Velada del Año de boxeo amateur","TheGrefg":"Youtuber español de Fortnite que batió el récord mundial de espectadores en Twitch","xQc":"Streamer canadiense conocido por sus reacciones exageradas y su ritmo frenético","MrBeast":"Youtuber americano más suscrito del mundo, conocido por retos con premios millonarios","Dream":"Youtuber de Minecraft conocido por sus speedruns con trampas y sus colaboraciones","Pokimane":"Una de las streamers más seguidas del mundo, conocida por sus partidas de Fortnite","Auronplay":"Streamer español conocido por su humor sarcástico y sus comentarios ácidos de vídeos","Spreen":"Streamer argentino muy popular en toda la comunidad hispana de Twitch","IShowSpeed":"Youtuber americano viral por sus reacciones totalmente impredecibles y explosivas","Faker":"Surcoreano considerado el mejor jugador de League of Legends de toda la historia"}},
+"Música y Artistas":{icon:"🎵",words:["Rock","Pop","Jazz","Blues","Soul","R&B","Hip-hop","Trap","Reguetón","Flamenco","Reggae","Funk","Disco","Techno","House","Trance","Dubstep","EDM","Country","Folk","Ópera","Clásica","Indie","Alternativa","Grunge","Metal","Heavy metal","Punk","Ska","K-pop","Afrobeat","Drill","Bad Bunny","Rosalía","Bizarrap","Quevedo","C. Tangana","Rauw Alejandro","J Balvin","Maluma","Nicki Nicole","Mora","Rels B","Cruz Cafuné","Recycled J","Dellafuente","Ptazeta","Morad","Yung Beef","Duki","Taylor Swift","Billie Eilish","Olivia Rodrigo","Ariana Grande","Dua Lipa","Doja Cat","SZA","Beyoncé","Rihanna","Cardi B","Drake","Kendrick Lamar","Travis Scott","Post Malone","The Weeknd","Kanye West","Jay-Z","Eminem","Tyler the Creator","Frank Ocean","BTS","BLACKPINK","Stray Kids","Aespa","NewJeans","Seventeen","NCT","Ive","Le Sserafim","The Beatles","Rolling Stones","Led Zeppelin","Pink Floyd","Queen","Nirvana","Radiohead","Red Hot Chili Peppers","David Bowie","Amy Winehouse","Michael Jackson","Madonna","Prince","Whitney Houston","Adele","Ed Sheeran","Harry Styles","Coldplay","Depeche Mode","The Cure","Sabrina Carpenter","Chappell Roan","Gracie Abrams","Charli XCX","Troye Sivan"],hints:{"Rosalía":"Artista española que mezcla el flamenco con producción urbana muy moderna","Bizarrap":"Productor argentino famoso por sus sesiones de estudio con artistas de todo el mundo","Bad Bunny":"Artista de reguetón que fue el más escuchado del mundo varios años consecutivos","K-pop":"Género coreano con grupos numerosos, coreografías muy elaboradas y fans extremadamente dedicados","Drill":"Subgénero del rap con beats oscuros y lentos, nacido en los barrios de Chicago","Taylor Swift":"Artista americana que empezó en el country y se convirtió en el mayor fenómeno pop global","Billie Eilish":"Cantante que se hizo mundialmente famosa siendo adolescente con un sonido muy oscuro y susurrado","Kendrick Lamar":"Rapero considerado un poeta del rap moderno, ganó el Premio Pulitzer por su música","BTS":"Grupo de k-pop coreano más conocido mundialmente, con millones de fans llamados Army","Flamenco":"Género musical y dancístico originario del sur de España con raíces gitanas y andaluzas"}},
+"Series y Películas":{icon:"🎬",words:["Breaking Bad","Better Call Saul","The Wire","The Sopranos","Game of Thrones","House of the Dragon","Succession","Euphoria","Squid Game","Dark","Stranger Things","The Crown","Peaky Blinders","Black Mirror","Sherlock","Fleabag","Sex Education","The Boys","Invincible","Hazbin Hotel","One Piece","Dragon Ball","Naruto","Bleach","Attack on Titan","Demon Slayer","Jujutsu Kaisen","My Hero Academia","Hunter x Hunter","Death Note","Fullmetal Alchemist","Spy x Family","Chainsaw Man","Vinland Saga","Berserk","One Punch Man","Mob Psycho","Re:Zero","Sword Art Online","Overlord","Avengers Endgame","Spider-Man","El caballero oscuro","Joker","Venom","Black Panther","Iron Man","Doctor Strange","Star Wars","Harry Potter","El Señor de los Anillos","El Hobbit","Piratas del Caribe","Jurassic Park","Matrix","Terminator","Dune","Interstellar","Inception","Oppenheimer","Blade Runner","El Padrino","Pulp Fiction","El Club de la Lucha","Forrest Gump","Titanic","Seven","Toy Story","El Rey León","Frozen","Shrek","Kung Fu Panda","Cars","Wall-E","Up","Inside Out","Coco","Élite","La Casa de Papel","Vis a vis","Skam España","Paquita Salas","Veneno","30 Monedas","Fariña","Hierro","White Lotus","The Bear","Severance","Andor","The Last of Us","Wednesday","Emily in Paris","Bridgerton","Lupin","Narcos"],hints:{"Breaking Bad":"Un profesor de química con cáncer empieza a fabricar droga con su exalumno","Squid Game":"Personas endeudadas participan en mortales versiones de juegos infantiles coreanos","Attack on Titan":"Los humanos sobreviven dentro de murallas gigantes para protegerse de titanes desnudos","Dark":"Serie alemana de viajes en el tiempo con familias entrelazadas en un pueblo pequeño","The Boys":"Superhéroes corrompidos por el poder son vigilados por un grupo de civiles sin poderes","Euphoria":"Serie sobre adolescentes que lidian con drogas, identidad y relaciones extremadamente tóxicas","Dune":"Épica de ciencia ficción en un planeta desértico donde la especia es el recurso más codiciado","Interstellar":"Astronautas viajan a través de un agujero de gusano para encontrar un nuevo hogar a la humanidad","La Casa de Papel":"Ladrones con trajes rojos y máscaras de Dalí asaltan la Fábrica Nacional de Moneda","El Padrino":"Saga clásica sobre una poderosa familia de la mafia italiana establecida en América"}},
+"Tecnología y Redes":{icon:"💻",words:["Smartphone","Ordenador","Tablet","Smartwatch","Auriculares","Altavoz inteligente","Cámara","Drone","Robot","Televisión","PlayStation","Xbox","Nintendo Switch","Steam Deck","VR","Meta Quest","Apple Vision Pro","Internet","Wi-Fi","Bluetooth","USB-C","Cargador inalámbrico","Router","Servidor","Nube","App","Algoritmo","Inteligencia artificial","Machine learning","ChatGPT","Claude","Gemini","Midjourney","Stable Diffusion","Sora","Copilot","GPU","RAM","SSD","Tarjeta gráfica","Placa base","Refrigeración líquida","Instagram","TikTok","YouTube","Twitter","Facebook","Snapchat","Reddit","Discord","Telegram","WhatsApp","BeReal","Threads","Twitch","NFT","Blockchain","Criptomoneda","Bitcoin","Ethereum","Metaverso","VRChat","Spotify","Apple Music","SoundCloud","Netflix","Discord Nitro","Spotify Premium","Xbox Game Pass","PlayStation Plus","Steam","Epic Games","Phishing","Hacker","Malware","Virus","Ransomware","VPN","Firewall","Bug","Contraseña","Meme","Viral","Trending","Hashtag","Stories","Reel","Short","Stream","Clip","Highlight","Deepfake","QR","NFC","5G","Fibra óptica","Servidor en la nube","Big Data","Prompt","Token","API"],hints:{"ChatGPT":"Inteligencia artificial conversacional de OpenAI que responde a cualquier pregunta","TikTok":"Red social china de vídeos muy cortos con algoritmo extremadamente adictivo","Discord":"App de chat de voz y texto usada masivamente por gamers y comunidades online","Steam Deck":"Consola portátil de Valve que ejecuta juegos de PC en cualquier lugar","NFT":"Archivo digital con un certificado de propiedad único registrado en blockchain","Metaverso":"Mundo virtual tridimensional donde interactúas con otros mediante un avatar","VPN":"Herramienta que cifra tu conexión y oculta tu IP para navegar de forma privada","Phishing":"Estafa digital que imita páginas reales para robarte contraseñas o datos bancarios","GPU":"Componente del ordenador diseñado para procesar millones de píxeles a la vez","BeReal":"Red social que te avisa de forma aleatoria para hacerte una foto espontánea doble"}},
+"Famosos y Deporte":{icon:"⭐",words:["Messi","Cristiano Ronaldo","Mbappé","Vinicius","Pedri","Gavi","Bellingham","Lamine Yamal","Haaland","Neymar","LeBron James","Stephen Curry","Luka Dončić","Giannis Antetokounmpo","Nikola Jokic","Victor Wembanyama","Max Verstappen","Lewis Hamilton","Carlos Sainz","Fernando Alonso","Charles Leclerc","Lando Norris","George Russell","Sergio Pérez","Oscar Piastri","Rafa Nadal","Carlos Alcaraz","Djokovic","Federer","Iga Świątek","Aryna Sabalenka","Coco Gauff","Emma Raducanu","Jannik Sinner","Taylor Swift","Beyoncé","Rihanna","Dua Lipa","Billie Eilish","Zendaya","Timothée Chalamet","Florence Pugh","Sydney Sweeney","Jacob Elordi","Barry Keoghan","Paul Mescal","Anya Taylor-Joy","Pedro Pascal","Tom Holland","Ryan Gosling","Margot Robbie","Cate Blanchett","Elon Musk","Mark Zuckerberg","Jeff Bezos","Bill Gates","Sam Altman","Jensen Huang","Sundar Pichai","Tim Cook","Pep Guardiola","Carlo Ancelotti","Diego Simeone","Klopp","Mourinho","Zidane","Ronaldinho","Maradona","Pelé","Cruyff","Simone Biles","Usain Bolt","Michael Phelps","Caeleb Dressel","Léon Marchand","Katie Ledecky","Caitlin Clark","Kylie Jenner","Kim Kardashian","Kendall Jenner","Miley Cyrus","Selena Gomez","Lady Gaga","Justin Bieber","Shawn Mendes","Kylie Minogue","Shakira","Ozzy Osbourne","Roger Waters","Bruce Springsteen","Elton John","Paul McCartney"],hints:{"Messi":"Jugador argentino con 8 Balones de Oro, ganó el Mundial de 2022 en Qatar","Elon Musk":"Fundador de Tesla y SpaceX, compró Twitter y lo rebautizó como X","Zendaya":"Actriz americana conocida por la serie Euphoria y las películas de Dune","MrBeast":"Youtuber más suscrito del mundo, conocido por sus retos y donaciones millonarias","Carlos Alcaraz":"Tenista murciano considerado el sucesor de Nadal, ganó Wimbledon con 20 años","Simone Biles":"Gimnasta americana considerada la mejor de la historia con múltiples oros olímpicos","Pedro Pascal":"Actor chileno protagonista de The Mandalorian y The Last of Us","Max Verstappen":"Tetracampeón del mundo de Fórmula 1 dominando con Red Bull","Zidane":"Exjugador y entrenador francés que ganó tres Champions League seguidas con el Real Madrid","Pep Guardiola":"Entrenador español considerado el mejor táctico del fútbol moderno"}},
+"Emociones e Internet":{icon:"😊",words:["Alegría","Tristeza","Miedo","Ira","Sorpresa","Asco","Amor","Odio","Envidia","Celos","Vergüenza","Culpa","Orgullo","Esperanza","Desesperación","Ansiedad","Estrés","Calma","Euforia","Melancolía","Nostalgia","Soledad","Aburrimiento","Curiosidad","Admiración","Desconfianza","Cariño","Compasión","Empatía","Antipatía","Entusiasmo","Valentía","Inseguridad","Humildad","Arrogancia","Gratitud","Lealtad","Traición","Sinceridad","Cinismo","FOMO","Burnout","Ghostear","Gaslighting","Love bombing","Situationship","Red flag","Green flag","Cringe","NPC","Simp","Chad","Ratio","Viral","Cancelado","Woke","Stan","Doomscrolling","Rizz","Parasocial","Gatekeeping","Based","Cap","No cap","Slay","Lowkey","Highkey","Vibe","Mood","Skill issue","Touch grass","Character development","Main character","Villain arc","Redemption arc","Glowup","Era","Crush","Orbitar","Stalkear","Enamorarse","Desamor","Ruptura","Reconciliación","Toxicidad","Procrastinar","Autosabotaje","Manifestar","Mindfulness","Autocuidado","Healing era","Flop era","Hyperfixación","Overstimulación","Disociación","Masking","Safe space","Trigger","Cope","Delulu"],hints:{"FOMO":"Miedo irracional a perderte algo que están viviendo otras personas en ese momento","Burnout":"Estado de agotamiento total físico y mental causado por exceso de presión acumulada","Ghostear":"Cortar todo contacto con alguien de repente sin dar ningún tipo de explicación","Gaslighting":"Hacer que alguien dude de su propia percepción o memoria de los hechos reales","Love bombing":"Abrumar a alguien con atención y afecto excesivos al principio de una relación","Situationship":"Relación que no llega a ser ni amistad ni pareja oficial, un término medio ambiguo","Red flag":"Señal clara de alerta sobre el comportamiento problemático de una persona","Rizz":"Habilidad natural para atraer o ligar con alguien sin aparente esfuerzo visible","Parasocial":"Vínculo emocional unilateral que desarrollas hacia alguien que no te conoce en absoluto","Delulu":"Creer algo irracional o imposible como si fuera totalmente real y alcanzable"}},
+"Objetos Cotidianos":{icon:"🏠",words:["Silla","Mesa","Sofá","Cama","Armario","Estantería","Lámpara","Espejo","Alfombra","Cortina","Cojín","Manta","Almohada","Sábana","Toalla","Jabón","Champú","Secador","Plancha","Lavadora","Secadora","Lavavajillas","Nevera","Microondas","Horno","Cafetera","Tostadora","Batidora","Aspiradora","Fregona","Escoba","Cubo","Detergente","Bayeta","Esponja","Fregadero","Ducha","Bañera","Inodoro","Grifo","Persiana","Puerta","Ventana","Balcón","Mando a distancia","Cargador","Auriculares","Enchufe","Regleta","Bombilla","Ventilador","Aire acondicionado","Calefacción","Radiador","Llave","Cerradura","Timbre","Buzón","Ascensor","Escalera","Bolígrafo","Cuaderno","Carpeta","Mochila","Calculadora","Tijeras","Pegamento","Grapadora","Regla","Compás","Cartera","Monedero","Llavero","Paraguas","Guantes","Bufanda","Gorro","Gafas","Reloj","Botella de agua","Termo","Fiambrera","Candado","Cinta adhesiva","Papel de aluminio","Tenedor","Cuchillo","Cuchara","Plato","Taza","Vaso","Copa","Bol","Cazuela","Sartén","Olla","Colador","Rallador","Pelador","Tabla de cortar","Embudo","Abrebotellas","Sacacorchos","Abrelatas"],hints:{"Fregona":"Utensilio para limpiar el suelo con agua y jabón, consiste en un palo largo con flecos","Lavavajillas":"Electrodoméstico que lava platos, vasos y cubiertos automáticamente con agua caliente","Grapadora":"Objeto de escritorio que une varias hojas de papel con pequeñas grapas metálicas","Fiambrera":"Recipiente hermético que se usa para transportar comida ya preparada de casa","Colador":"Utensilio con agujeros que sirve para separar líquidos de sólidos como la pasta","Pelador":"Utensilio pequeño de cocina con hoja afilada para quitar la piel de verduras","Termo":"Recipiente aislante térmicamente que conserva bebidas calientes o frías durante horas","Candado":"Cierre de seguridad portátil que se abre con llave o con una combinación numérica","Regleta":"Alargador eléctrico con varios enchufes en fila y un cable largo para llegar lejos","Embudo":"Utensilio con forma de cono que sirve para verter líquidos en recipientes de boca estrecha"}}
 };
 
-// ════════════════════════════════════════════
+// ═══════════════════════════════════════
+// DISABLED WORDS
+// ═══════════════════════════════════════
+const loadDis=()=>{try{return JSON.parse(localStorage.getItem('imp_dis')||'{}')}catch{return{}}};
+const saveDis=(o)=>{try{localStorage.setItem('imp_dis',JSON.stringify(o))}catch{}};
+function toggleWord(theme,word,el){const d=loadDis(),k=theme+'|'+word;if(d[k]){delete d[k];el.classList.remove('disabled')}else{d[k]=1;el.classList.add('disabled')};saveDis(d);updateTC(theme)}
+function resetDisabled(){saveDis({});renderAllWords()}
+function updateTC(theme){const d=loadDis(),t=THEMES[theme];const a=t.words.filter(w=>!d[theme+'|'+w]).length;const id=theme.replace(/[\s\/]/g,'_');const el=document.querySelector(`#tvi-${id} .tc`);if(el)el.textContent=`${a}/${t.words.length} activas`}
+
+// ═══════════════════════════════════════
 // STATE
-// ════════════════════════════════════════════
-let state = {
-  players: [],
-  impostors: 1,
-  timerSeconds: 60,
-  selectedTheme: null,
-  currentPlayerIndex: 0,
-  roles: [],
-  word: '',
-  theme: '',
-  votes: {},
-  votedFor: null,
-  timerInterval: null,
-  timerRemaining: 60,
-  timerTotal: 60,
-  paused: false,
-  impostorNames: [],
-  trollEnabled: false,
-  trollTarget: null,
-  trollWord: '',
+// ═══════════════════════════════════════
+let S={
+  players:[],impostors:1,timerSeconds:60,selectedThemes:[],
+  currentPlayerIndex:0,roles:[],word:'',theme:'',
+  votedFor:null,timerInterval:null,timerRemaining:60,timerTotal:60,paused:false,impostorNames:[],
+  isOnline:false,isHost:false,roomCode:null,myName:null,lobbyInterval:null,
+  hintMode:'palabra'  // 'palabra' | 'categoria' | 'ninguna'
 };
 
-// ════════════════════════════════════════════
+// ═══════════════════════════════════════
 // NAVIGATION
-// ════════════════════════════════════════════
-function goTo(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  // scroll to top
-  const el = document.getElementById(id);
-  if(el) el.scrollTop = 0;
+// ═══════════════════════════════════════
+function goTo(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  const el=document.getElementById(id);
+  if(el){el.classList.add('active');el.scrollTop=0}
 }
 
-// ════════════════════════════════════════════
-// DISABLED WORDS (persiste en localStorage)
-// ════════════════════════════════════════════
-function loadDisabled() {
-  try { return JSON.parse(localStorage.getItem('impostor_disabled') || '{}'); }
-  catch(e) { return {}; }
-}
-function saveDisabled(obj) {
-  try { localStorage.setItem('impostor_disabled', JSON.stringify(obj)); } catch(e) {}
-}
-function toggleWord(theme, word, chipEl) {
-  const disabled = loadDisabled();
-  const key = theme + '|' + word;
-  if(disabled[key]) {
-    delete disabled[key];
-    chipEl.classList.remove('disabled');
-  } else {
-    disabled[key] = 1;
-    chipEl.classList.add('disabled');
-  }
-  saveDisabled(disabled);
-  updateThemeCount(theme);
-}
-function resetDisabled() {
-  saveDisabled({});
-  renderAllWords();
-}
-function isWordDisabled(theme, word) {
-  const disabled = loadDisabled();
-  return !!disabled[theme + '|' + word];
-}
-function updateThemeCount(theme) {
-  const disabled = loadDisabled();
-  const t = THEMES[theme];
-  const activeCount = t.words.filter(w => !disabled[theme+'|'+w]).length;
-  const id = theme.replace(/\s/g,'_');
-  const countEl = document.querySelector(`#tvi-${id} .theme-count`);
-  if(countEl) countEl.textContent = `${activeCount} / ${t.words.length} palabras activas`;
+// ═══════════════════════════════════════
+// THEME GRIDS
+// ═══════════════════════════════════════
+function renderThemeGrid(gridId){
+  const g=document.getElementById(gridId);if(!g)return;g.innerHTML='';
+  Object.keys(THEMES).forEach(name=>{
+    const t=THEMES[name];const c=document.createElement('div');
+    const sel=S.selectedThemes.includes(name);
+    c.className='theme-card'+(sel?' selected':'');
+    c.innerHTML=`<span class="t-check">✓</span><div class="t-icon">${t.icon}</div><div class="t-name">${name}</div><div class="t-count">${t.words.length} palabras</div>`;
+    c.onclick=()=>{const i=S.selectedThemes.indexOf(name);if(i>=0)S.selectedThemes.splice(i,1);else S.selectedThemes.push(name);c.classList.toggle('selected',S.selectedThemes.includes(name))};
+    g.appendChild(c);
+  });
 }
 
-// ════════════════════════════════════════════
-// ALL WORDS SCREEN
-// ════════════════════════════════════════════
-function renderAllWords() {
-  const disabled = loadDisabled();
-  const container = document.getElementById('all-words-list');
-  container.innerHTML = Object.keys(THEMES).map(name => {
-    const t = THEMES[name];
-    const safeId = name.replace(/\s/g,'_');
-    const activeCount = t.words.filter(w => !disabled[name+'|'+w]).length;
-    return `<div class="theme-viewer-item" id="tvi-${safeId}">
-      <div class="theme-viewer-header" onclick="toggleThemeView('${safeId}')">
+// ═══════════════════════════════════════
+// ALL WORDS
+// ═══════════════════════════════════════
+function renderAllWords(){
+  const d=loadDis(),c=document.getElementById('all-words-list');
+  c.innerHTML=Object.keys(THEMES).map(name=>{
+    const t=THEMES[name],id=name.replace(/[\s\/]/g,'_');
+    const active=t.words.filter(w=>!d[name+'|'+w]).length;
+    return `<div class="theme-viewer-item" id="tvi-${id}">
+      <div class="theme-viewer-header" onclick="toggleTV('${id}')">
         <div style="display:flex;align-items:center;gap:10px">
           <span style="font-size:20px">${t.icon}</span>
-          <div>
-            <div style="font-weight:800;font-size:15px">${name}</div>
-            <div style="font-size:12px;color:var(--muted)" class="theme-count">${activeCount} / ${t.words.length} palabras activas</div>
-          </div>
+          <div><div style="font-weight:800;font-size:15px">${name}</div><div class="tc" style="font-size:12px;color:var(--muted)">${active}/${t.words.length} activas</div></div>
         </div>
-        <span style="color:var(--muted);font-size:18px" id="arrow-${safeId}">▼</span>
+        <span style="color:var(--muted);font-size:18px" id="arr-${id}">▼</span>
       </div>
-      <div class="theme-viewer-words" id="words-${safeId}">
-        ${t.words.map(w => {
-          const dis = disabled[name+'|'+w] ? 'disabled' : '';
-          return `<div class="word-chip ${dis}" onclick="toggleWord('${name.replace(/'/g,"\\'")}','${w.replace(/'/g,"\\'")}',this)">${w}</div>`;
-        }).join('')}
+      <div class="theme-viewer-words" id="tw-${id}">
+        ${t.words.map(w=>`<div class="word-chip${d[name+'|'+w]?' disabled':''}" onclick="toggleWord('${name.replace(/'/g,"\\'")}','${w.replace(/'/g,"\\'")}',this)">${w}</div>`).join('')}
       </div>
     </div>`;
   }).join('');
 }
+function toggleTV(id){const tw=document.getElementById('tw-'+id),arr=document.getElementById('arr-'+id);const open=tw.style.display==='flex';tw.style.display=open?'none':'flex';arr.textContent=open?'▼':'▲'}
 
-function toggleThemeView(id) {
-  const words = document.getElementById('words-'+id);
-  const arrow = document.getElementById('arrow-'+id);
-  const item = document.getElementById('tvi-'+id);
-  if(words.style.display === 'flex') {
-    words.style.display = 'none';
-    arrow.textContent = '▼';
-  } else {
-    words.style.display = 'flex';
-    arrow.textContent = '▲';
-  }
-}
-
-// ════════════════════════════════════════════
-// THEME GRID
-// ════════════════════════════════════════════
-function renderThemes() {
-  const grid = document.getElementById('theme-grid');
-  grid.innerHTML = '';
-  Object.keys(THEMES).forEach(name => {
-    const t = THEMES[name];
-    const safeId = name.replace(/\s/g,'_');
-    const card = document.createElement('div');
-    card.className = 'theme-card' + (state.selectedTheme===name?' selected':'');
-    card.id = 'tc-'+safeId;
-    card.innerHTML = `
-      <div class="t-icon">${t.icon}</div>
-      <div class="t-name">${name}</div>
-      <div class="t-count">${t.words.length} palabras</div>
-    `;
-    card.onclick = () => {
-      state.selectedTheme = name;
-      document.querySelectorAll('.theme-card').forEach(c=>c.classList.remove('selected'));
-      card.classList.add('selected');
-    };
-    grid.appendChild(card);
+// ═══════════════════════════════════════
+// LOCAL SETUP
+// ═══════════════════════════════════════
+function addPlayer(){const inp=document.getElementById('player-input');const n=inp.value.trim();if(!n||S.players.includes(n)){inp.value='';return}S.players.push(n);inp.value='';renderChips();inp.focus()}
+function removePlayer(n){S.players=S.players.filter(p=>p!==n);renderChips()}
+function renderChips(){document.getElementById('player-chips').innerHTML=S.players.map(p=>`<div class="chip">${p}<span class="remove" onclick="removePlayer('${p.replace(/'/g,"\\'")}')">×</span></div>`).join('')}
+function setHintMode(mode, el, prefix=''){
+  S.hintMode=mode;
+  ['palabra','categoria','ninguna'].forEach(m=>{
+    const btn=document.getElementById((prefix||'')+'hm-'+m);
+    if(btn) btn.classList.toggle('active', m===mode);
   });
 }
+function changeVal(id,delta){const el=document.getElementById(id);let v=parseInt(el.value)+delta;if(id.includes('impostors'))v=Math.max(1,Math.min(3,v));if(id.includes('timer'))v=Math.max(10,Math.min(300,v));el.value=v}
 
-// ════════════════════════════════════════════
-// PLAYERS
-// ════════════════════════════════════════════
-function addPlayer() {
-  const input = document.getElementById('player-input');
-  const name = input.value.trim();
-  if(!name || state.players.includes(name)) { input.value=''; return; }
-  state.players.push(name);
-  input.value='';
-  renderChips();
-  updateTrollSelect();
-  input.focus();
+// ═══════════════════════════════════════
+// WORD PICKING
+// ═══════════════════════════════════════
+function pickWord(themes){
+  const d=loadDis(),pool=[];
+  themes.forEach(th=>THEMES[th].words.forEach(w=>{if(!d[th+'|'+w])pool.push({word:w,theme:th})}));
+  if(!pool.length)return null;
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+// Single-word keywords for each hint (first 1-word distilled clue)
+const KEYWORDS={
+  "Araña":"Seda","Tiburón":"Aleta","Mariposa":"Crisálida","Ballena":"Mamífero","Pingüino":"Antártico",
+  "Koala":"Eucalipto","Oso polar":"Ártico","Murciélago":"Ultrasonidos","Flamenco":"Zancuda",
+  "Volcán":"Magma","Arrecife":"Coral","Glaciar":"Hielo","Cocodrilo":"Reptil","Pulpo":"Camuflaje","Águila":"Rapaz",
+  "Sushi":"Arroz","Paella":"Azafrán","Tortilla de patatas":"Patata","Gazpacho":"Frío",
+  "Salmorejo":"Córdoba","Croquetas":"Bechamel","Churros":"Chocolate","Crema catalana":"Quemado",
+  "Tiramisú":"Café","Fondue":"Fundido","Ramen":"Fideos","Mochi":"Glutinoso","Baklava":"Miel","Tempura":"Rebozado","Bibimbap":"Coreano",
+  "Esgrima":"Espada","Curling":"Hielo","Waterpolo":"Piscina","Capoeira":"Baile","Biatlón":"Rifle",
+  "Slackline":"Equilibrio","Petanca":"Boliche","Hurling":"Irlanda","Padel":"Cristal","Bouldering":"Escalada",
+  "Japón":"Anime","Australia":"Canguro","Brasil":"Amazónica","Egipto":"Pirámides","Noruega":"Fiordos",
+  "Singapur":"Ultramoderna","Dubai":"Rascacielos","Nueva York":"Estatua","Tokio":"Poblada","Barcelona":"Gaudí",
+  "Minecraft":"Bloques","Fortnite":"Paracaídas","Among Us":"Traidor","Stardew Valley":"Granja",
+  "Genshin Impact":"Anime","Hollow Knight":"Insecto","Phasmophobia":"Fantasmas","Elden Ring":"Difícil",
+  "Cuphead":"Dibujado","Rocket League":"Cohetes",
+  "Ibai":"Velada","TheGrefg":"Récord","xQc":"Reacciones","MrBeast":"Millonario","Dream":"Speedrun",
+  "Pokimane":"Fortnite","Auronplay":"Sarcástico","Spreen":"Argentino","IShowSpeed":"Explosivo","Faker":"Invicto",
+  "Rosalía":"Flamenco","Bizarrap":"Sesiones","Bad Bunny":"Reguetón","K-pop":"Coreografías","Drill":"Chicago",
+  "Taylor Swift":"Fenómeno","Billie Eilish":"Oscuro","Kendrick Lamar":"Pulitzer","BTS":"Army","Flamenco":"Gitano",
+  "Breaking Bad":"Química","Squid Game":"Infantiles","Attack on Titan":"Murallas","Dark":"Tiempo",
+  "The Boys":"Corrupción","Euphoria":"Drogas","Dune":"Especia","Interstellar":"Agujero","La Casa de Papel":"Máscaras","El Padrino":"Mafia",
+  "ChatGPT":"Conversacional","TikTok":"Adictivo","Discord":"Gamers","Steam Deck":"Portátil",
+  "NFT":"Blockchain","Metaverso":"Avatar","VPN":"Privacidad","Phishing":"Estafa","GPU":"Píxeles","BeReal":"Espontánea",
+  "Messi":"Balones","Elon Musk":"SpaceX","Zendaya":"Euphoria","Carlos Alcaraz":"Wimbledon",
+  "Simone Biles":"Olímpica","Pedro Pascal":"Mandalorian","Max Verstappen":"Tetracampeón","Zidane":"Champions","Pep Guardiola":"Táctico",
+  "FOMO":"Perderse","Burnout":"Agotamiento","Ghostear":"Desaparecer","Gaslighting":"Manipulación",
+  "Love bombing":"Bombardeo","Situationship":"Ambiguo","Red flag":"Alerta","Rizz":"Ligar","Parasocial":"Unilateral","Delulu":"Irracional",
+  "Fregona":"Palo","Lavavajillas":"Automático","Grapadora":"Grapas","Fiambrera":"Hermético",
+  "Colador":"Agujeros","Pelador":"Piel","Termo":"Aislante","Candado":"Seguridad","Regleta":"Enchufes","Embudo":"Cono"
+};
+function getHint(word,theme){return THEMES[theme]?.hints?.[word]||null}
+function getKeyword(word,theme){return KEYWORDS[word]||null}
+function buildHintHTML(word,theme){
+  const mode=S.hintMode||'palabra';
+  if(mode==='ninguna') return '<div style="font-size:13px;color:var(--muted);margin-top:14px;text-align:center">Sin pista — ¡mucha suerte!</div>';
+  if(mode==='categoria') return `<div class="hint-box"><div class="hint-label">🏷️ Categoría</div><div class="hint-text">${theme}</div></div>`;
+  // mode === 'palabra'
+  const kw=getKeyword(word,theme);
+  const display=kw||theme;
+  return `<div class="hint-box"><div class="hint-label">💡 Pista</div><div class="hint-text">${display}</div></div>`;
 }
 
-function removePlayer(name) {
-  state.players = state.players.filter(p=>p!==name);
-  renderChips();
-  updateTrollSelect();
+// ═══════════════════════════════════════
+// START LOCAL
+// ═══════════════════════════════════════
+function startLocalGame(){
+  if(S.players.length<3){alert('Necesitas al menos 3 jugadores');return}
+  if(!S.selectedThemes.length){alert('Selecciona al menos una categoría');return}
+  S.impostors=parseInt(document.getElementById('impostors').value);
+  S.timerSeconds=parseInt(document.getElementById('timer').value);
+  if(S.impostors>=S.players.length){alert('Demasiados impostores');return}
+  const p=pickWord(S.selectedThemes);
+  if(!p){alert('No quedan palabras activas. Restaura algunas en "Ver todas las palabras".');return}
+  S.word=p.word;S.theme=p.theme;S.isOnline=false;
+  const sh=[...S.players].sort(()=>Math.random()-.5);
+  S.roles=sh.map((n,i)=>({name:n,isImpostor:i<S.impostors}));
+  S.roles.sort(()=>Math.random()-.5);
+  S.impostorNames=S.roles.filter(r=>r.isImpostor).map(r=>r.name);
+  S.currentPlayerIndex=0;showPassScreen();goTo('screen-pass');
 }
 
-function renderChips() {
-  const wrap = document.getElementById('player-chips');
-  wrap.innerHTML = state.players.map(p=>`
-    <div class="chip ${state.trollTarget===p?'troll-chip':''}">
-      ${p}${state.trollTarget===p?' 👻':''}
-      <span class="remove" onclick="removePlayer('${p.replace(/'/g,"\\'")}')">×</span>
-    </div>
-  `).join('');
-}
-
-function changeVal(id, delta) {
-  const el = document.getElementById(id);
-  let v = parseInt(el.value)+delta;
-  if(id==='impostors') v=Math.max(1,Math.min(3,v));
-  if(id==='timer') v=Math.max(10,Math.min(300,v));
-  el.value=v;
-  if(id==='impostors') state.impostors=v;
-  if(id==='timer') state.timerSeconds=v;
-}
-
-// ════════════════════════════════════════════
-// TROLL
-// ════════════════════════════════════════════
-function toggleTroll() {
-  const on = document.getElementById('troll-toggle').checked;
-  state.trollEnabled = on;
-  document.getElementById('troll-config').style.display = on ? 'block':'none';
-  const slider = document.getElementById('toggle-slider');
-  const ball = document.getElementById('toggle-ball');
-  slider.style.background = on ? 'var(--troll)':'var(--border)';
-  ball.style.transform = on ? 'translateX(24px)':'';
-}
-
-function updateTrollSelect() {
-  const sel = document.getElementById('troll-target');
-  const current = sel.value;
-  sel.innerHTML = '<option value="">— Selecciona jugador —</option>' +
-    state.players.map(p=>`<option value="${p}" ${p===current?'selected':''}>${p}</option>`).join('');
-}
-
-// ════════════════════════════════════════════
-// START GAME
-// ════════════════════════════════════════════
-function startGame() {
-  if(state.players.length < 3) { alert('Necesitas al menos 3 jugadores'); return; }
-  if(!state.selectedTheme) { alert('Selecciona un tema'); return; }
-  state.impostors = parseInt(document.getElementById('impostors').value);
-  state.timerSeconds = parseInt(document.getElementById('timer').value);
-  if(state.impostors >= state.players.length) { alert('Demasiados impostores'); return; }
-
-  // Troll config
-  state.trollEnabled = document.getElementById('troll-toggle').checked;
-  state.trollTarget = document.getElementById('troll-target').value || null;
-  state.trollWord = document.getElementById('troll-word').value.trim() || null;
-  if(state.trollEnabled && (!state.trollTarget || !state.trollWord)) {
-    alert('Para el modo Troll necesitas elegir a quién trollear y la palabra falsa'); return;
+// ═══════════════════════════════════════
+// PASS & REVEAL (local)
+// ═══════════════════════════════════════
+const AV=['😎','🤠','🥸','🧐','😏','🤩','🥳','😈','👻','🤖','🎭','🦊','🐺','🎩','🦁','🐯','🦅','🐸','🦋','🌟'];
+function showPassScreen(){const p=S.roles[S.currentPlayerIndex];document.getElementById('pass-name').textContent=p.name;document.getElementById('pass-avatar').textContent=AV[S.currentPlayerIndex%AV.length]}
+function revealWord(){
+  const p=S.roles[S.currentPlayerIndex],idx=S.currentPlayerIndex;
+  document.getElementById('word-player-num').textContent=idx+1;
+  document.getElementById('word-player-total').textContent=S.roles.length;
+  document.getElementById('word-theme-label').textContent=S.theme;
+  document.getElementById('progress-dots').innerHTML=S.roles.map((_,i)=>`<div class="dot ${i<idx?'done':i===idx?'active':''}"></div>`).join('');
+  const badge=document.getElementById('badge-impostor'),wb=document.getElementById('word-big'),wr=document.getElementById('word-role'),hc=document.getElementById('hint-container');
+  if(p.isImpostor){
+    badge.style.display='inline-flex';wr.textContent='Tu rol:';wb.textContent='IMPOSTOR';wb.className='word-big impostor';
+    hc.innerHTML=buildHintHTML(S.word,S.theme);
+  }else{
+    badge.style.display='none';wr.textContent='Tu palabra secreta es:';wb.textContent=S.word;wb.className='word-big';
+    hc.innerHTML=`<div style="font-size:13px;color:var(--muted);margin-top:12px;text-align:center">Categoría: <b style="color:var(--text)">${S.theme}</b><br>Da una pista sin decir la palabra directamente</div>`;
   }
-
-  // Pick word (excluding disabled)
-  const disabled = loadDisabled();
-  const words = THEMES[state.selectedTheme].words.filter(w => !disabled[state.selectedTheme+'|'+w]);
-  if(words.length === 0) { alert('No quedan palabras activas en este tema. Restaura algunas desde "Ver todas las palabras".'); return; }
-  state.word = words[Math.floor(Math.random()*words.length)];
-  state.theme = state.selectedTheme;
-
-  // Assign roles
-  const shuffled = [...state.players].sort(()=>Math.random()-0.5);
-  state.roles = shuffled.map((name,i)=>({name, isImpostor: i<state.impostors, isTroll: false}));
-  state.roles.sort(()=>Math.random()-0.5);
-
-  // Mark troll (on a non-impostor player)
-  if(state.trollEnabled && state.trollTarget) {
-    const role = state.roles.find(r=>r.name===state.trollTarget && !r.isImpostor);
-    if(role) role.isTroll = true;
-  }
-
-  state.impostorNames = state.roles.filter(r=>r.isImpostor).map(r=>r.name);
-  state.currentPlayerIndex = 0;
-
-  showPassScreen();
-  goTo('screen-pass');
-}
-
-// ════════════════════════════════════════════
-// PASS & REVEAL
-// ════════════════════════════════════════════
-const AVATARS = ['😎','🤠','🥸','🧐','😏','🤩','🥳','😈','👻','🤖','🎭','🦊','🐺','🎩','🦁','🐯','🦅','🐸','🦋','🌟'];
-function showPassScreen() {
-  const player = state.roles[state.currentPlayerIndex];
-  document.getElementById('pass-name').textContent = player.name;
-  document.getElementById('pass-avatar').textContent = AVATARS[state.currentPlayerIndex % AVATARS.length];
-}
-
-function getHint(word, theme) {
-  // Check theme-specific hints first
-  const themeData = THEMES[theme];
-  if(themeData && themeData.hints && themeData.hints[word]) {
-    return themeData.hints[word];
-  }
-  // Generic fallback hints based on word length/category
-  return null;
-}
-
-function revealWord() {
-  const player = state.roles[state.currentPlayerIndex];
-  const numPlayers = state.roles.length;
-  const idx = state.currentPlayerIndex;
-
-  document.getElementById('word-player-num').textContent = idx+1;
-  document.getElementById('word-player-total').textContent = numPlayers;
-  document.getElementById('word-theme-label').textContent = state.theme;
-
-  const dots = document.getElementById('progress-dots');
-  dots.innerHTML = state.roles.map((_,i)=>
-    `<div class="dot ${i<idx?'done':i===idx?'active':''}"></div>`
-  ).join('');
-
-  const badgeImp = document.getElementById('badge-impostor');
-  const badgeTroll = document.getElementById('badge-troll');
-  const wordBig = document.getElementById('word-big');
-  const wordRole = document.getElementById('word-role');
-  const wordHint = document.getElementById('word-hint');
-  const hintContainer = document.getElementById('hint-container');
-
-  badgeImp.style.display='none';
-  badgeTroll.style.display='none';
-  hintContainer.innerHTML='';
-
-  if(player.isImpostor) {
-    badgeImp.style.display='inline-flex';
-    wordRole.textContent='Tu rol:';
-    wordBig.textContent='IMPOSTOR';
-    wordBig.className='word-big impostor';
-    wordHint.textContent='Intenta pasar desapercibido. Da pistas vagas pero creíbles.';
-    // Impostor gets a hint about the word
-    const hint = getHint(state.word, state.theme);
-    if(hint) {
-      hintContainer.innerHTML = `
-        <div class="hint-box">
-          <div class="hint-label">💡 Tu pista secreta</div>
-          <div class="hint-text">${hint}</div>
-        </div>`;
-    } else {
-      // Generate a generic category hint
-      hintContainer.innerHTML = `
-        <div class="hint-box">
-          <div class="hint-label">💡 Categoría</div>
-          <div class="hint-text">La palabra pertenece a: <b>${state.theme}</b></div>
-        </div>`;
-    }
-  } else if(player.isTroll) {
-    badgeTroll.style.display='inline-flex';
-    wordRole.textContent='Tu palabra (falsa) es:';
-    wordBig.textContent=state.trollWord.toUpperCase();
-    wordBig.className='word-big troll-word';
-    wordHint.textContent='Nadie sabe que tu palabra es diferente. Intenta no levantar sospechas 😈';
-    hintContainer.innerHTML=`
-      <div class="troll-hint-box">
-        <div class="troll-hint-title">👻 Eres el Troll secreto</div>
-        <div style="font-size:13px;color:var(--muted)">Da pistas sobre <b style="color:var(--troll)">${state.trollWord}</b>, no sobre la palabra real. ¡Nadie lo sabe!</div>
-      </div>`;
-  } else {
-    wordRole.textContent='Tu palabra secreta es:';
-    wordBig.textContent=state.word;
-    wordBig.className='word-big';
-    wordHint.textContent=`Tema: ${state.theme} · Da pistas sin decir la palabra directamente.`;
-  }
-
   goTo('screen-word');
 }
+function nextPlayer(){S.currentPlayerIndex++;if(S.currentPlayerIndex>=S.roles.length){startTimer();goTo('screen-timer')}else{showPassScreen();goTo('screen-pass')}}
 
-function nextPlayer() {
-  state.currentPlayerIndex++;
-  if(state.currentPlayerIndex >= state.roles.length) {
-    startTimer();
-    goTo('screen-timer');
-  } else {
-    showPassScreen();
-    goTo('screen-pass');
-  }
-}
-
-// ════════════════════════════════════════════
+// ═══════════════════════════════════════
 // TIMER
-// ════════════════════════════════════════════
-function startTimer() {
-  clearInterval(state.timerInterval);
-  state.timerRemaining = state.timerSeconds;
-  state.timerTotal = state.timerSeconds;
-  state.paused = false;
-  document.getElementById('pause-btn').textContent='⏸ Pausar';
-  updateTimerUI();
-  state.timerInterval = setInterval(tickTimer, 1000);
+// ═══════════════════════════════════════
+function startTimer(){
+  clearInterval(S.timerInterval);S.timerRemaining=S.timerSeconds;S.timerTotal=S.timerSeconds;S.paused=false;
+  document.getElementById('pause-btn').textContent='⏸ Pausar';updateTimerUI();
+  S.timerInterval=setInterval(()=>{if(S.paused)return;S.timerRemaining--;updateTimerUI();if(S.timerRemaining<=0){clearInterval(S.timerInterval);goVote()}},1000);
 }
+function updateTimerUI(){const t=S.timerRemaining;document.getElementById('timer-display').textContent=t;const pct=t/S.timerTotal;const f=document.getElementById('timer-fill');f.style.strokeDashoffset=251*(1-pct);f.style.stroke=pct>.5?'var(--accent3)':pct>.25?'var(--accent2)':'var(--accent)'}
+function pauseTimer(){S.paused=!S.paused;document.getElementById('pause-btn').textContent=S.paused?'▶ Reanudar':'⏸ Pausar'}
+function resetTimer(){clearInterval(S.timerInterval);startTimer()}
 
-function tickTimer() {
-  if(state.paused) return;
-  state.timerRemaining--;
-  updateTimerUI();
-  if(state.timerRemaining<=0) {
-    clearInterval(state.timerInterval);
-    goVote();
-  }
-}
-
-function updateTimerUI() {
-  const t = state.timerRemaining;
-  document.getElementById('timer-display').textContent = t;
-  const fill = document.getElementById('timer-fill');
-  const pct = t/state.timerTotal;
-  fill.style.strokeDashoffset = 251*(1-pct);
-  fill.style.stroke = pct>0.5?'var(--accent3)':pct>0.25?'var(--accent2)':'var(--accent)';
-}
-
-function pauseTimer() {
-  state.paused = !state.paused;
-  document.getElementById('pause-btn').textContent = state.paused?'▶ Reanudar':'⏸ Pausar';
-}
-
-function resetTimer() { clearInterval(state.timerInterval); startTimer(); }
-
-// ════════════════════════════════════════════
+// ═══════════════════════════════════════
 // VOTE
-// ════════════════════════════════════════════
-function goVote() {
-  clearInterval(state.timerInterval);
-  state.votedFor = null;
-  const list = document.getElementById('vote-list');
-  list.innerHTML = state.players.map(p=>`
-    <div class="vote-item" id="vi-${p.replace(/[^a-zA-Z0-9]/g,'_')}" onclick="vote('${p.replace(/'/g,"\\'")}')">
-      <span class="vote-name">${p}</span>
-      <span>👆</span>
-    </div>
-  `).join('');
+// ═══════════════════════════════════════
+function goVote(){
+  clearInterval(S.timerInterval);S.votedFor=null;
+  document.getElementById('vote-list').innerHTML=S.players.map(p=>`<div class="vote-item" id="vi-${p.replace(/[^a-z0-9]/gi,'_')}" onclick="vote('${p.replace(/'/g,"\\'")}')"><span>${p}</span><span>👆</span></div>`).join('');
   goTo('screen-vote');
 }
+function vote(n){if(S.votedFor)document.getElementById('vi-'+S.votedFor.replace(/[^a-z0-9]/gi,'_'))?.classList.remove('voted');S.votedFor=n;document.getElementById('vi-'+n.replace(/[^a-z0-9]/gi,'_')).classList.add('voted')}
+function skipVote(){showResult(false,null)}
+function resolveVote(){if(!S.votedFor){alert('Selecciona a alguien');return}if(S.impostorNames.includes(S.votedFor)){document.getElementById('guess-impostor-name').textContent=S.votedFor;document.getElementById('guess-input').value='';goTo('screen-guess')}else{showResult(false,S.votedFor)}}
+function checkGuess(){const g=document.getElementById('guess-input').value.trim().toLowerCase(),w=S.word.toLowerCase();showResult(g===w||w.includes(g)||g.includes(w),S.impostorNames[0])}
+function impostorFails(){showResult(false,S.impostorNames[0])}
 
-function vote(name) {
-  if(state.votedFor) {
-    const oldId = state.votedFor.replace(/[^a-zA-Z0-9]/g,'_');
-    document.getElementById('vi-'+oldId)?.classList.remove('voted');
-  }
-  state.votedFor = name;
-  document.getElementById('vi-'+name.replace(/[^a-zA-Z0-9]/g,'_')).classList.add('voted');
-}
-
-function skipVote() { showResult(false, null); }
-
-function resolveVote() {
-  if(!state.votedFor) { alert('Selecciona a alguien'); return; }
-  const isImpostor = state.impostorNames.includes(state.votedFor);
-  if(isImpostor) {
-    document.getElementById('guess-impostor-name').textContent = state.votedFor;
-    document.getElementById('guess-input').value = '';
-    goTo('screen-guess');
-  } else {
-    showResult(false, state.votedFor);
-  }
-}
-
-// ════════════════════════════════════════════
-// GUESS
-// ════════════════════════════════════════════
-function checkGuess() {
-  const guess = document.getElementById('guess-input').value.trim().toLowerCase();
-  const word = state.word.toLowerCase();
-  const hit = guess===word || word.includes(guess) || guess.includes(word);
-  showResult(hit, state.impostorNames[0]);
-}
-
-function impostorFails() { showResult(false, state.impostorNames[0]); }
-
-// ════════════════════════════════════════════
+// ═══════════════════════════════════════
 // RESULT
-// ════════════════════════════════════════════
-function showResult(impostorWins, eliminated) {
-  const title = document.getElementById('result-title');
-  const sub = document.getElementById('result-sub');
-  if(impostorWins) {
-    title.textContent='¡GANA EL IMPOSTOR!';
-    title.className='result-big lose';
-    sub.textContent = eliminated ? `${eliminated} adivinó la palabra y se salvó` : 'El impostor no fue descubierto';
-  } else {
-    title.textContent='¡CIVILES GANAN!';
-    title.className='result-big win';
-    sub.textContent = eliminated ? `${eliminated} fue eliminado` : 'Nadie fue eliminado esta ronda';
-  }
-  document.getElementById('result-theme').textContent = state.theme;
-  document.getElementById('result-word').textContent = state.word;
-  document.getElementById('result-impostors').textContent = state.impostorNames.join(', ');
-
-  // Troll reveal
-  const trollReveal = document.getElementById('result-troll-reveal');
-  if(state.trollEnabled && state.trollTarget) {
-    trollReveal.style.display='block';
-    document.getElementById('result-troll-name').textContent = state.trollTarget;
-    document.getElementById('result-troll-word').textContent = state.trollWord;
-  } else {
-    trollReveal.style.display='none';
-  }
-
+// ═══════════════════════════════════════
+function showResult(iWins,eliminated){
+  const t=document.getElementById('result-title'),s=document.getElementById('result-sub');
+  if(iWins){t.textContent='¡GANA EL IMPOSTOR!';t.className='result-big lose';s.textContent=eliminated?`${eliminated} adivinó la palabra y se salvó`:'El impostor no fue descubierto'}
+  else{t.textContent='¡CIVILES GANAN!';t.className='result-big win';s.textContent=eliminated?`${eliminated} fue eliminado`:'Nadie fue eliminado esta ronda'}
+  document.getElementById('result-theme').textContent=S.theme;
+  document.getElementById('result-word').textContent=S.word;
+  document.getElementById('result-impostors').textContent=S.impostorNames.join(', ');
   goTo('screen-result');
 }
+function playAgain(){
+  if(S.isOnline){if(S.isHost)goTo('screen-create-lobby');else goTo('screen-guest-lobby');return}
+  S.currentPlayerIndex=0;
+  const p=pickWord(S.selectedThemes);if(!p){alert('No quedan palabras activas.');goTo('screen-home');return}
+  S.word=p.word;S.theme=p.theme;
+  const sh=[...S.players].sort(()=>Math.random()-.5);
+  S.roles=sh.map((n,i)=>({name:n,isImpostor:i<S.impostors}));S.roles.sort(()=>Math.random()-.5);
+  S.impostorNames=S.roles.filter(r=>r.isImpostor).map(r=>r.name);S.votedFor=null;
+  showPassScreen();goTo('screen-pass');
+}
 
-function playAgainSameSettings() {
-  state.currentPlayerIndex=0;
-  const disabledAgain = loadDisabled();
-  const words = THEMES[state.selectedTheme].words.filter(w => !disabledAgain[state.selectedTheme+'|'+w]);
-  if(words.length === 0) { alert('No quedan palabras activas en este tema.'); goTo('screen-home'); return; }
-  state.word = words[Math.floor(Math.random()*words.length)];
-  const shuffled = [...state.players].sort(()=>Math.random()-0.5);
-  state.roles = shuffled.map((name,i)=>({name, isImpostor: i<state.impostors, isTroll: false}));
-  state.roles.sort(()=>Math.random()-0.5);
-  if(state.trollEnabled && state.trollTarget) {
-    const role = state.roles.find(r=>r.name===state.trollTarget && !r.isImpostor);
-    if(role) role.isTroll = true;
+// ═══════════════════════════════════════
+// ONLINE — CREAR SALA
+// ═══════════════════════════════════════
+async function initCreateRoom(){
+  goTo('screen-create-lobby');
+  renderThemeGrid('ol-theme-grid');
+  const code=String(Math.floor(100+Math.random()*900));
+  S.roomCode=code;S.isHost=true;S.isOnline=true;S.myName='Host';
+  document.getElementById('host-code').textContent=code;
+  await fbSet(`rooms/${code}`,{host:'Host',status:'waiting',config:{impostors:1,timer:60,themes:[]},players:{Host:{name:'Host',ready:false}},game:null});
+  startLobbyPoll();
+}
+
+function startLobbyPoll(){
+  if(S.lobbyInterval)clearInterval(S.lobbyInterval);
+  S.lobbyInterval=fbListen(`rooms/${S.roomCode}`,onRoomUpdate,2500);
+}
+
+function onRoomUpdate(room){
+  if(!room)return;
+  const players=Object.values(room.players||{});
+  if(S.isHost){
+    document.getElementById('lobby-count').textContent=players.length;
+    renderLobbyList(players,'lobby-player-list');
+  }else{
+    renderLobbyList(players,'guest-player-list');
   }
-  state.impostorNames = state.roles.filter(r=>r.isImpostor).map(r=>r.name);
-  state.votedFor = null;
-  showPassScreen();
-  goTo('screen-pass');
+  if(room.status==='started'&&room.game){
+    clearInterval(S.lobbyInterval);
+    const game=room.game;
+    const myEntry=(game.roles||[]).find(r=>r.name===S.myName);
+    if(myEntry){
+      S.word=game.word;S.theme=game.theme;S.timerSeconds=game.timer;
+      S.impostorNames=game.impostorNames;S.players=Object.keys(room.players||{});
+      S.hintMode=game.hintMode||'palabra';
+      showOnlineWord(myEntry.isImpostor,game.word,game.theme);
+    }
+  }
 }
 
-function closeModal() {
-  document.getElementById('modal-words').classList.remove('open');
+function renderLobbyList(players,listId){
+  const el=document.getElementById(listId);if(!el)return;
+  el.innerHTML=players.map((p,i)=>`<div class="lobby-player"><div class="lp-avatar">${AV[i%AV.length]}</div><div class="lp-name">${p.name}</div>${i===0?'<div class="lp-tag">Host</div>':''}<div class="sdot"></div></div>`).join('');
 }
 
-// ════════════════════════════════════════════
+async function hostStartGame(){
+  const themes=S.selectedThemes;
+  if(!themes.length){alert('Selecciona al menos una categoría');return}
+  const room=await fbGet(`rooms/${S.roomCode}`);if(!room){alert('Sala no encontrada');return}
+  const players=Object.values(room.players||{}).map(p=>p.name);
+  const impostors=parseInt(document.getElementById('ol-impostors').value);
+  const timer=parseInt(document.getElementById('ol-timer').value);
+  if(impostors>=players.length){alert('Demasiados impostores para los jugadores conectados');return}
+  const picked=pickWord(themes);if(!picked){alert('No quedan palabras activas');return}
+  const sh=[...players].sort(()=>Math.random()-.5);
+  const roles=sh.map((n,i)=>({name:n,isImpostor:i<impostors}));roles.sort(()=>Math.random()-.5);
+  const impostorNames=roles.filter(r=>r.isImpostor).map(r=>r.name);
+  S.word=picked.word;S.theme=picked.theme;S.timerSeconds=timer;S.impostors=impostors;
+  S.impostorNames=impostorNames;S.players=players;S.roles=roles;
+  await fbPatch(`rooms/${S.roomCode}`,{status:'started',game:{word:picked.word,theme:picked.theme,timer,impostors,impostorNames,roles,hintMode:S.hintMode}});
+  const myRole=roles.find(r=>r.name==='Host');
+  if(myRole)showOnlineWord(myRole.isImpostor,picked.word,picked.theme);
+}
+
+// ═══════════════════════════════════════
+// ONLINE — UNIRSE
+// ═══════════════════════════════════════
+async function joinRoom(){
+  const name=document.getElementById('join-name').value.trim();
+  const code=document.getElementById('join-code').value.trim();
+  if(!name){alert('Escribe tu nombre');return}
+  if(code.length!==3){alert('El código debe tener exactamente 3 dígitos');return}
+  const room=await fbGet(`rooms/${code}`);
+  if(!room||room===null){alert('Sala no encontrada. Comprueba el código.');return}
+  if(room.status!=='waiting'){alert('La partida ya ha comenzado, no puedes unirte');return}
+  const existing=Object.keys(room.players||{});
+  if(existing.includes(name)){alert('Ese nombre ya está en uso en esta sala. Elige otro.');return}
+  S.roomCode=code;S.myName=name;S.isHost=false;S.isOnline=true;
+  await fbPatch(`rooms/${code}/players`,{[name]:{name,ready:false}});
+  document.getElementById('guest-code').textContent=code;
+  startLobbyPoll();
+  goTo('screen-guest-lobby');
+}
+
+// ═══════════════════════════════════════
+// ONLINE — WORD REVEAL
+// ═══════════════════════════════════════
+function showOnlineWord(isImpostor,word,theme){
+  const badge=document.getElementById('ol-badge-impostor'),wb=document.getElementById('ol-word-big'),wr=document.getElementById('ol-word-role'),hc=document.getElementById('ol-hint-container');
+  if(isImpostor){
+    badge.style.display='inline-flex';wr.textContent='Tu rol:';wb.textContent='IMPOSTOR';wb.className='word-big impostor';
+    hc.innerHTML=buildHintHTML(word,theme);
+  }else{
+    badge.style.display='none';wr.textContent='Tu palabra secreta es:';wb.textContent=word;wb.className='word-big';
+    hc.innerHTML=`<div style="font-size:13px;color:var(--muted);margin-top:12px;text-align:center">Categoría: <b style="color:var(--text)">${theme}</b><br>Da una pista sin decir la palabra</div>`;
+  }
+  document.getElementById('ol-ready-btn').disabled=false;
+  document.getElementById('ol-waiting-msg').textContent='Pulsa cuando estés listo';
+  goTo('screen-online-word');
+}
+
+async function onlinePlayerReady(){
+  document.getElementById('ol-ready-btn').disabled=true;
+  document.getElementById('ol-waiting-msg').textContent='Esperando al resto de jugadores…';
+  await fbPatch(`rooms/${S.roomCode}/players/${S.myName}`,{ready:true});
+  const check=setInterval(async()=>{
+    const room=await fbGet(`rooms/${S.roomCode}`);if(!room)return;
+    const players=Object.values(room.players||{});
+    if(players.every(p=>p.ready)){
+      clearInterval(check);
+      S.players=players.map(p=>p.name);
+      const updates={};players.forEach(p=>updates[p.name]={...p,ready:false});
+      await fbPatch(`rooms/${S.roomCode}/players`,updates);
+      startTimer();goTo('screen-timer');
+    }
+  },2500);
+}
+
+async function leaveRoom(){
+  if(S.roomCode){
+    if(S.isHost)await fbDel(`rooms/${S.roomCode}`);
+    else await fbDel(`rooms/${S.roomCode}/players/${S.myName}`);
+  }
+  if(S.lobbyInterval)clearInterval(S.lobbyInterval);
+  S.roomCode=null;S.isOnline=false;S.isHost=false;S.myName=null;S.lobbyInterval=null;
+  goTo('screen-home');
+}
+
+// ═══════════════════════════════════════
 // INIT
-// ════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', () => {
-  renderThemes();
+// ═══════════════════════════════════════
+document.addEventListener('DOMContentLoaded',()=>{
+  renderThemeGrid('theme-grid');
   renderAllWords();
 });
 </script>
