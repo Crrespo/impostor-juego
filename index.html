@@ -422,7 +422,8 @@ async function readBin(code) {
   const j = await r.json();
   return j.record || null;
 }
-
+const SB_URL = 'https://tunsubewrfturxiicohd.supabase.co';   // pega tu Project URL
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR1bnN1YmV3cmZ0dXJ4aWljb2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MTYyNzQsImV4cCI6MjA5MTk5MjI3NH0.uJxM_nnW9bRGHBgQk9CBQbMrhfH8_JG4mlBlelbipJ0';         // pega tu anon public key
 // ── LocalStorage room store (works on same device/network) ────────────
 function lsSetRoom(code, data) {
   localStorage.setItem('imp_room_'+code, JSON.stringify(data));
@@ -449,11 +450,38 @@ function lsMergeRoom(code, patch) {
 }
 
 // ── Room API (uses localStorage as primary, fast & no-internet needed) ─
-async function roomCreate(code, data) { lsSetRoom(code, data); }
-async function roomSet(code, data)    { lsSetRoom(code, data); }
-async function roomMerge(code, patch) { return lsMergeRoom(code, patch); }
-async function roomGet(code)          { return lsGetRoom(code); }
-async function roomDel(code)          { lsDelRoom(code); }
+async function roomCreate(code, data) {
+  lsSetRoom(code, data);
+  await fetch(`${SB_URL}/rest/v1/rooms`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY},
+    body: JSON.stringify({code, data, updated_at: Date.now()})
+  });
+}
+async function roomSet(code, data) {
+  lsSetRoom(code, data);
+  await fetch(`${SB_URL}/rest/v1/rooms?code=eq.${code}`, {
+    method: 'PATCH',
+    headers: {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY},
+    body: JSON.stringify({data, updated_at: Date.now()})
+  });
+}
+async function roomGet(code) {
+  const local = lsGetRoom(code);
+  if(local) return local;
+  const r = await fetch(`${SB_URL}/rest/v1/rooms?code=eq.${code}&select=data`, {
+    headers: {'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}
+  });
+  const rows = await r.json();
+  return rows?.[0]?.data || null;
+}
+async function roomDel(code) {
+  lsDelRoom(code);
+  await fetch(`${SB_URL}/rest/v1/rooms?code=eq.${code}`, {
+    method: 'DELETE',
+    headers: {'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}
+  });
+}
 
 // ── Polling ─────────────────────────────────────────────────────────────
 function fbListen(code, cb, ms=1500) {
