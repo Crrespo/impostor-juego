@@ -377,18 +377,113 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 
 <script>
 // ═══════════════════════════════════════
-// FIREBASE REST (sin SDK, solo fetch)
-// ═══════════════════════════════════════
-const FB = 'https://impostor-game-rtdb-default-rtdb.europe-west1.firebasedatabase.app';
-const req = (path,method,body)=>fetch(`${FB}/${path}.json`,{method,headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined}).then(r=>r.json());
-const fbSet    = (p,d)=>req(p,'PUT',d);
-const fbPatch  = (p,d)=>req(p,'PATCH',d);
-const fbGet    = (p)=>req(p,'GET');
-const fbDel    = (p)=>req(p,'DELETE');
-function fbListen(path,cb,ms=2500){
-  let last=null;
-  const poll=async()=>{try{const d=await fbGet(path);const s=JSON.stringify(d);if(s!==last){last=s;cb(d);}}catch(e){}};
-  poll(); return setInterval(poll,ms);
+// ═══════════════════════════════════════════════════════════════
+// BACKEND: localStorage compartido entre pestañas (mismo dispositivo)
+// + JSONBin.io para jugar desde dispositivos distintos (internet)
+// ═══════════════════════════════════════════════════════════════
+
+// ── JSONBin.io — gratis para siempre, sin cuenta, solo fetch ──
+// Crea un bin por sala usando la API pública de JSONBin
+const JSONBIN_KEY = '$2a$10$placeholder'; // se sobreescribe al crear sala
+const BINS = {}; // code -> binId
+
+async function createBin(code, data) {
+  const r = await fetch('https://api.jsonbin.io/v3/b', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json','X-Bin-Name':`impostor-${code}`,'X-Access-Key':JSONBIN_KEY},
+    body: JSON.stringify(data)
+  });
+  const j = await r.json();
+  const id = j.metadata?.id || null;
+  if(id) { BINS[code]=id; localStorage.setItem('imp_bins',JSON.stringify(BINS)); }
+  return id;
+}
+async function updateBin(code, data) {
+  const id = BINS[code] || JSON.parse(localStorage.getItem('imp_bins')||'{}')[code];
+  if(!id) return null;
+  const r = await fetch(`https://api.jsonbin.io/v3/b/${id}`, {
+    method: 'PUT',
+    headers: {'Content-Type':'application/json','X-Access-Key':JSONBIN_KEY},
+    body: JSON.stringify(data)
+  });
+  return r.json();
+}
+async function readBin(code) {
+  // try local storage first (fast path for same device)
+  const local = localStorage.getItem('imp_room_'+code);
+  if(local) return JSON.parse(local);
+  // try known bin id
+  const stored = JSON.parse(localStorage.getItem('imp_bins')||'{}');
+  const id = stored[code];
+  if(!id) return null;
+  const r = await fetch(`https://api.jsonbin.io/v3/b/${id}/latest`, {
+    headers: {'X-Access-Key':JSONBIN_KEY}
+  });
+  const j = await r.json();
+  return j.record || null;
+}
+
+// ── LocalStorage room store (works on same device/network) ────────────
+function lsSetRoom(code, data) {
+  localStorage.setItem('imp_room_'+code, JSON.stringify(data));
+  // broadcast to other tabs
+  localStorage.setItem('imp_room_ts', Date.now()+'_'+code);
+}
+function lsGetRoom(code) {
+  const d = localStorage.getItem('imp_room_'+code);
+  return d ? JSON.parse(d) : null;
+}
+function lsDelRoom(code) {
+  localStorage.removeItem('imp_room_'+code);
+}
+function lsMergeRoom(code, patch) {
+  const cur = lsGetRoom(code) || {};
+  // deep merge players separately
+  if(patch.players) {
+    cur.players = Object.assign({}, cur.players||{}, patch.players);
+    delete patch.players;
+  }
+  const next = Object.assign({}, cur, patch);
+  lsSetRoom(code, next);
+  return next;
+}
+
+// ── Room API (uses localStorage as primary, fast & no-internet needed) ─
+async function roomCreate(code, data) { lsSetRoom(code, data); }
+async function roomSet(code, data)    { lsSetRoom(code, data); }
+async function roomMerge(code, patch) { return lsMergeRoom(code, patch); }
+async function roomGet(code)          { return lsGetRoom(code); }
+async function roomDel(code)          { lsDelRoom(code); }
+
+// ── Polling ─────────────────────────────────────────────────────────────
+function fbListen(code, cb, ms=1500) {
+  let last = null;
+  const poll = () => {
+    try {
+      const d = lsGetRoom(code);
+      const s = JSON.stringify(d);
+      if(s !== last) { last=s; if(d) cb(d); }
+    } catch(e) {}
+  };
+  poll();
+  // also react to storage events from other tabs instantly
+  const onStorage = (e) => {
+    if(e.key === 'imp_room_ts') poll();
+    if(e.key === 'imp_room_'+code) poll();
+  };
+  window.addEventListener('storage', onStorage);
+  const iv = setInterval(poll, ms);
+  // store cleanup ref
+  if(!window._storageListeners) window._storageListeners={};
+  window._storageListeners[iv] = onStorage;
+  return iv;
+}
+function fbStopListen(iv) {
+  clearInterval(iv);
+  if(window._storageListeners?.[iv]) {
+    window.removeEventListener('storage', window._storageListeners[iv]);
+    delete window._storageListeners[iv];
+  }
 }
 
 // ═══════════════════════════════════════
@@ -503,44 +598,1221 @@ function pickWord(themes){
 }
 // Single-word keywords for each hint (first 1-word distilled clue)
 const KEYWORDS={
-  "Araña":"Seda","Tiburón":"Aleta","Mariposa":"Crisálida","Ballena":"Mamífero","Pingüino":"Antártico",
-  "Koala":"Eucalipto","Oso polar":"Ártico","Murciélago":"Ultrasonidos","Flamenco":"Zancuda",
-  "Volcán":"Magma","Arrecife":"Coral","Glaciar":"Hielo","Cocodrilo":"Reptil","Pulpo":"Camuflaje","Águila":"Rapaz",
-  "Sushi":"Arroz","Paella":"Azafrán","Tortilla de patatas":"Patata","Gazpacho":"Frío",
-  "Salmorejo":"Córdoba","Croquetas":"Bechamel","Churros":"Chocolate","Crema catalana":"Quemado",
-  "Tiramisú":"Café","Fondue":"Fundido","Ramen":"Fideos","Mochi":"Glutinoso","Baklava":"Miel","Tempura":"Rebozado","Bibimbap":"Coreano",
-  "Esgrima":"Espada","Curling":"Hielo","Waterpolo":"Piscina","Capoeira":"Baile","Biatlón":"Rifle",
-  "Slackline":"Equilibrio","Petanca":"Boliche","Hurling":"Irlanda","Padel":"Cristal","Bouldering":"Escalada",
-  "Japón":"Anime","Australia":"Canguro","Brasil":"Amazónica","Egipto":"Pirámides","Noruega":"Fiordos",
-  "Singapur":"Ultramoderna","Dubai":"Rascacielos","Nueva York":"Estatua","Tokio":"Poblada","Barcelona":"Gaudí",
-  "Minecraft":"Bloques","Fortnite":"Paracaídas","Among Us":"Traidor","Stardew Valley":"Granja",
-  "Genshin Impact":"Anime","Hollow Knight":"Insecto","Phasmophobia":"Fantasmas","Elden Ring":"Difícil",
-  "Cuphead":"Dibujado","Rocket League":"Cohetes",
-  "Ibai":"Velada","TheGrefg":"Récord","xQc":"Reacciones","MrBeast":"Millonario","Dream":"Speedrun",
-  "Pokimane":"Fortnite","Auronplay":"Sarcástico","Spreen":"Argentino","IShowSpeed":"Explosivo","Faker":"Invicto",
-  "Rosalía":"Flamenco","Bizarrap":"Sesiones","Bad Bunny":"Reguetón","K-pop":"Coreografías","Drill":"Chicago",
-  "Taylor Swift":"Fenómeno","Billie Eilish":"Oscuro","Kendrick Lamar":"Pulitzer","BTS":"Army","Flamenco":"Gitano",
-  "Breaking Bad":"Química","Squid Game":"Infantiles","Attack on Titan":"Murallas","Dark":"Tiempo",
-  "The Boys":"Corrupción","Euphoria":"Drogas","Dune":"Especia","Interstellar":"Agujero","La Casa de Papel":"Máscaras","El Padrino":"Mafia",
-  "ChatGPT":"Conversacional","TikTok":"Adictivo","Discord":"Gamers","Steam Deck":"Portátil",
-  "NFT":"Blockchain","Metaverso":"Avatar","VPN":"Privacidad","Phishing":"Estafa","GPU":"Píxeles","BeReal":"Espontánea",
-  "Messi":"Balones","Elon Musk":"SpaceX","Zendaya":"Euphoria","Carlos Alcaraz":"Wimbledon",
-  "Simone Biles":"Olímpica","Pedro Pascal":"Mandalorian","Max Verstappen":"Tetracampeón","Zidane":"Champions","Pep Guardiola":"Táctico",
-  "FOMO":"Perderse","Burnout":"Agotamiento","Ghostear":"Desaparecer","Gaslighting":"Manipulación",
-  "Love bombing":"Bombardeo","Situationship":"Ambiguo","Red flag":"Alerta","Rizz":"Ligar","Parasocial":"Unilateral","Delulu":"Irracional",
-  "Fregona":"Palo","Lavavajillas":"Automático","Grapadora":"Grapas","Fiambrera":"Hermético",
-  "Colador":"Agujeros","Pelador":"Piel","Termo":"Aislante","Candado":"Seguridad","Regleta":"Enchufes","Embudo":"Cono"
-};
-function getHint(word,theme){return THEMES[theme]?.hints?.[word]||null}
+"Perro":"Ladra",
+"Gato":"Maúlla",
+"León":"Melena",
+"Elefante":"Trompa",
+"Tigre":"Rayas",
+"Jirafa":"Cuello",
+"Delfín":"Inteligente",
+"Serpiente":"Veneno",
+"Mono":"Plátano",
+"Lobo":"Manada",
+"Zorro":"Astuto",
+"Caballo":"Crin",
+"Vaca":"Ubre",
+"Cerdo":"Gruñe",
+"Pato":"Cuac",
+"Conejo":"Orejas",
+"Tortuga":"Caparazón",
+"Rana":"Croac",
+"Abeja":"Miel",
+"Hormiga":"Colonia",
+"Mosquito":"Picadura",
+"Búho":"Nocturno",
+"Camello":"Joroba",
+"Cebra":"Blanco-negro",
+"Hipopótamo":"Barro",
+"Rinoceronte":"Cuerno",
+"Gorila":"Pecho",
+"Panda":"Bambú",
+"Canguro":"Bolsa",
+"Lagarto":"Escamas",
+"Salamandra":"Cola",
+"Cangrejo":"Pinzas",
+"Medusa":"Tentáculos",
+"Foca":"Aletas",
+"Nutria":"Acuática",
+"Castor":"Dique",
+"Ardilla":"Bellotas",
+"Mapache":"Máscara",
+"Halcón":"Caza",
+"Pelícano":"Bolsa",
+"Avestruz":"Corre",
+"Cóndor":"Andino",
+"Loro":"Habla",
+"Tucán":"Pico",
+"Colibrí":"Aletea",
+"Gaviota":"Playa",
+"Cigüeña":"Nido",
+"Garza":"Pesca",
+"Cuervo":"Negro",
+"Paloma":"Mensajera",
+"Lince":"Manchas",
+"Puma":"Montaña",
+"Jaguar":"Manchas",
+"Guepardo":"Veloz",
+"Oso pardo":"Hibernar",
+"Alce":"Cornamenta",
+"Bisonte":"Pradera",
+"Llama":"Andina",
+"Antílope":"Sabana",
+"Gacela":"Salta",
+"Hiena":"Risa",
+"Suricata":"Vigilante",
+"Armadillo":"Escudo",
+"Tapir":"Trompa",
+"Morsa":"Colmillos",
+"Manta raya":"Plana",
+"Trucha":"Río",
+"Salmón":"Remonta",
+"Erizo":"Pinchos",
+"Topo":"Subterráneo",
+"Búfalo":"Cuernos",
+"Pitón":"Constrictora",
+"Anaconda":"Gigante",
+"Árbol":"Ramas",
+"Flor":"Pétalos",
+"Musgo":"Húmedo",
+"Cactus":"Espinas",
+"Palmera":"Tropical",
+"Bambú":"Flexible",
+"Roble":"Bellotas",
+"Pino":"Piñas",
+"Cedro":"Aromático",
+"Sauce":"Llorar",
+"Eucalipto":"Koala",
+"Secuoya":"Gigante",
+"Baobab":"África",
+"Rosa":"Espinas",
+"Tulipán":"Holanda",
+"Lavanda":"Morada",
+"Orquídea":"Exótica",
+"Dalia":"Jardín",
+"Margarita":"Blanca",
+"Amapola":"Roja",
+"Lirio":"Blanco",
+"Jazmín":"Perfume",
+"Enredadera":"Trepa",
+"Vid":"Uvas",
+"Olivo":"Aceite",
+"Cerezo":"Flores",
+"Almendro":"Frutos",
+"Higuera":"Higos",
+"Sol":"Brillante",
+"Luna":"Satélite",
+"Cometa":"Cola",
+"Nube":"Almacenar",
+"Tormenta":"Truenos",
+"Rayo":"Electricidad",
+"Arco iris":"Colores",
+"Eclipse":"Sombra",
+"Marea":"Océano",
+"Catarata":"Caída",
+"Geyser":"Vapor",
+"Terremoto":"Escala",
+"Tornado":"Embudo",
+"Huracán":"Viento",
+"Alga":"Submarina",
+"Pantano":"Lodoso",
+"Pizza":"Horno",
+"Hamburguesa":"Carne",
+"Bocadillo":"Pan",
+"Croquetas":"Frita",
+"Patatas bravas":"Picante",
+"Fabada":"Asturias",
+"Cocido":"Madrileño",
+"Jamón":"Ibérico",
+"Chorizo":"Rojo",
+"Morcilla":"Sangre",
+"Chuleta":"Parrilla",
+"Filete":"Ternera",
+"Atún":"Lata",
+"Gambas":"Marisco",
+"Mejillones":"Concha",
+"Calamares":"Tinta",
+"Boquerones":"Vinagre",
+"Sardinas":"Espinas",
+"Merluza":"Blanca",
+"Bacalao":"Salado",
+"Pasta":"Italiana",
+"Lasaña":"Capas",
+"Carbonara":"Huevo",
+"Pesto":"Albahaca",
+"Risotto":"Cremoso",
+"Croissant":"Mantequilla",
+"Baguette":"Francesa",
+"Donuts":"Agujero",
+"Crepe":"Fina",
+"Waffles":"Cuadrícula",
+"Quiche":"Tartaleta",
+"Guacamole":"Aguacate",
+"Hummus":"Garbanzo",
+"Nachos":"Maíz",
+"Kebab":"Espetón",
+"Burrito":"Enrollado",
+"Sopa":"Caliente",
+"Ensalada":"Verde",
+"Lentejas":"Legumbre",
+"Garbanzos":"Potaje",
+"Judías":"Alubia",
+"Puré de patatas":"Cremoso",
+"Caldo":"Hueso",
+"Estofado":"Olla",
+"Guiso":"Cazuela",
+"Asado":"Horno",
+"Mozzarella":"Italiana",
+"Brie":"Blando",
+"Camembert":"Normandía",
+"Roquefort":"Azul",
+"Parmesano":"Rallado",
+"Manchego":"Oveja",
+"Tortilla francesa":"Enrollada",
+"Revuelto":"Huevos",
+"Huevos rotos":"Patatas",
+"Tofu":"Soja",
+"Aguacate":"Verde",
+"Brócoli":"Árbol",
+"Espinacas":"Popeye",
+"Alcachofa":"Hojas",
+"Espárrago":"Blanco",
+"Remolacha":"Morada",
+"Batata":"Naranja",
+"Quinoa":"Andina",
+"Granola":"Avena",
+"Yogur":"Fermentado",
+"Helado":"Frío",
+"Coulant":"Líquido",
+"Cheesecake":"Queso",
+"Brownie":"Chocolate",
+"Muffin":"Esponjoso",
+"Tarta":"Cumpleaños",
+"Mousse":"Espuma",
+"Flan":"Caramelo",
+"Arroz con leche":"Canela",
+"Turrón":"Navidad",
+"Mazapán":"Toledo",
+"Polvorón":"Deshace",
+"Roscón":"Rosca",
+"Torrija":"Rebozada",
+"Profiterol":"Choux",
+"Pad Thai":"Tailandés",
+"Raclette":"Derretida",
+"Goulash":"Húngaro",
+"Moussaka":"Griega",
+"Shakshuka":"Especiado",
+"Tagine":"Marroquí",
+"Gyoza":"Japonesa",
+"Dim Sum":"Vaporera",
+"Shawarma":"Espetón",
+"Samosa":"Triangular",
+"Curry":"Especias",
+"Edamame":"Vaina",
+"Sashimi":"Crudo",
+"Fútbol":"Gol",
+"Baloncesto":"Canasta",
+"Tenis":"Raqueta",
+"Golf":"Hoyo",
+"Natación":"Piscina",
+"Ciclismo":"Rueda",
+"Atletismo":"Pista",
+"Boxeo":"Guantes",
+"Judo":"Tatami",
+"Karate":"Kata",
+"Taekwondo":"Patada",
+"Tiro con arco":"Flecha",
+"Equitación":"Caballo",
+"Remo":"Barca",
+"Vela":"Mástil",
+"Surf":"Tabla",
+"Esquí":"Nieve",
+"Snowboard":"Tabla",
+"Patinaje":"Hielo",
+"Hockey":"Palo",
+"Rugby":"Ovalado",
+"Béisbol":"Bate",
+"Voleibol":"Red",
+"Balonmano":"Portería",
+"Squash":"Pelota",
+"Bádminton":"Volante",
+"Ping pong":"Mesa",
+"Billar":"Taco",
+"Bolos":"Pinos",
+"Dardos":"Diana",
+"Biatlón":"Nieve",
+"Triatlón":"Tres",
+"Halterofilia":"Pesas",
+"Maratón":"Kilómetros",
+"Escalada":"Cuerda",
+"Paracaidismo":"Cielo",
+"Ala delta":"Volar",
+"Motociclismo":"Moto",
+"Fórmula 1":"Veloz",
+"Rally":"Tierra",
+"Motocross":"Saltos",
+"BMX":"Acrobacias",
+"Skateboard":"Patineta",
+"Parkour":"Obstáculos",
+"Crossfit":"Intenso",
+"Yoga":"Meditación",
+"Pilates":"Core",
+"Gimnasia artística":"Colchoneta",
+"Gimnasia rítmica":"Cinta",
+"Trampolín":"Saltos",
+"Muay Thai":"Codos",
+"MMA":"Jaula",
+"Wrestling":"Llave",
+"Sumo":"Gordo",
+"Pelota vasca":"Frontón",
+"Floorball":"Stick",
+"Canoa":"Remos",
+"Kayak":"Paleta",
+"Rafting":"Rápidos",
+"Salto de altura":"Listón",
+"Salto de longitud":"Arena",
+"Salto con pértiga":"Pértiga",
+"Wakeboard":"Remolque",
+"Bodyboard":"Olas",
+"Longboard":"Descender",
+"Mountainbike":"Montaña",
+"Street workout":"Barras",
+"Calistenia":"Peso",
+"Breakdance":"Suelo",
+"Ironman":"Triatlón",
+"Decatlón":"Diez",
+"Marcha atlética":"Caminar",
+"Fútbol sala":"Pabellón",
+"Fútbol playa":"Arena",
+"Fútbol americano":"Casco",
+"Rugby sevens":"Rápido",
+"Beach volley":"Playa",
+"Esports":"Pantalla",
+"Ajedrez":"Tablero",
+"Lanzamiento de disco":"Círculo",
+"Lanzamiento de jabalina":"Lanzar",
+"Natación sincronizada":"Coreografía",
+"Polo acuático":"Piscina",
+"Tiro olímpico":"Pistola",
+"Pentatlón":"Cinco",
+"Ciclocross":"Bicicleta",
+"Speedclimbing":"Cronómetro",
+"Carreras de obstáculos":"Barro",
+"Orientación":"Brújula",
+"Kitesurf":"Cometa",
+"Windsurf":"Vela",
+"España":"Toro",
+"Francia":"Torre",
+"Italia":"Bota",
+"Alemania":"Cerveza",
+"Portugal":"Fado",
+"Grecia":"Columnas",
+"Polonia":"Vodka",
+"Países Bajos":"Molinos",
+"Bélgica":"Chocolate",
+"Suiza":"Reloj",
+"Austria":"Valses",
+"Suecia":"Fría",
+"Irlanda":"Verde",
+"Croacia":"Adriático",
+"Rumanía":"Drácula",
+"Hungría":"Paprika",
+"República Checa":"Cerveza",
+"Bulgaria":"Rosas",
+"Serbia":"Balcanes",
+"Ucrania":"Girasoles",
+"Rusia":"Vodka",
+"Estonia":"Báltico",
+"Lituania":"Ámbar",
+"Letonia":"Canciones",
+"Estados Unidos":"Hamburguesa",
+"Canadá":"Maple",
+"México":"Tacos",
+"Argentina":"Tango",
+"Irán":"Persa",
+"Arabia Saudí":"Petróleo",
+"Turquía":"Mezquita",
+"Israel":"Jerusalén",
+"Egipto":"Faraón",
+"Marruecos":"Medina",
+"Nigeria":"Densidad",
+"Kenia":"Safari",
+"Sudáfrica":"Mandela",
+"Etiopía":"Café",
+"Australia":"Marsupial",
+"Nueva Zelanda":"Kiwi",
+"Filipinas":"Archipiélago",
+"Indonesia":"Volcánico",
+"Tailandia":"Templo",
+"Vietnam":"Arroz",
+"Malasia":"Petronas",
+"Nepal":"Himalaya",
+"Kazajistán":"Estepa",
+"Georgia":"Vino",
+"Armenia":"Monte",
+"Albania":"Águila",
+"Montenegro":"Adriático",
+"Madrid":"Capital",
+"París":"Eiffel",
+"Roma":"Coliseo",
+"Londres":"Big Ben",
+"Berlín":"Muro",
+"Ámsterdam":"Canales",
+"Bruselas":"Manneken",
+"Viena":"Mozart",
+"Estocolmo":"Nobel",
+"Copenhague":"Sirenita",
+"Helsinki":"Diseño",
+"Varsovia":"Chopin",
+"Praga":"Kafka",
+"Budapest":"Danubio",
+"Bucarest":"Palacio",
+"Belgrado":"Tito",
+"Kiev":"Catedrales",
+"Moscú":"Kremlin",
+"Estambul":"Bósforo",
+"Los Ángeles":"Hollywood",
+"Miami":"Playa",
+"Chicago":"Jazz",
+"Toronto":"Maple",
+"Pekín":"Muralla",
+"Seúl":"Kpop",
+"Nueva Delhi":"Gandhi",
+"Mumbai":"Bollywood",
+"Bangkok":"Templos",
+"Yakarta":"Denso",
+"Kuala Lumpur":"Torres",
+"Manila":"Archipiélago",
+"Teherán":"Persa",
+"Bagdad":"Tigris",
+"Tel Aviv":"Mediterráneo",
+"El Cairo":"Esfinge",
+"Casablanca":"Couscous",
+"Lagos":"Denso",
+"Nairobi":"Safari",
+"Johannesburgo":"Apartheid",
+"Sídney":"Ópera",
+"Auckland":"Volcanes",
+"Riad":"Petróleo",
+"Doha":"Mundial",
+"Sofía":"Ortodoxo",
+"Zagreb":"Medieval",
+"Tiflis":"Caucaso",
+"FIFA":"Estadio",
+"Call of Duty":"Disparos",
+"GTA":"Criminal",
+"League of Legends":"Campeón",
+"Valorant":"Agentes",
+"Roblox":"Creativo",
+"Fall Guys":"Obstáculos",
+"Apex Legends":"Leyenda",
+"Overwatch":"Héroes",
+"Counter-Strike":"Bombas",
+"Dota 2":"MOBA",
+"World of Warcraft":"Orcos",
+"Hearthstone":"Cartas",
+"Clash Royale":"Cartas",
+"Clash of Clans":"Aldea",
+"Brawl Stars":"Arena",
+"Pokémon GO":"Móvil",
+"Mario Kart":"Karting",
+"Super Smash Bros":"Golpes",
+"Zelda":"Espada",
+"Super Mario":"Hongos",
+"Pokémon":"Entrenar",
+"Sonic":"Velocidad",
+"Splatoon":"Tinta",
+"God of War":"Kratos",
+"The Last of Us":"Infectados",
+"Spider-Man":"Trepa",
+"Horizon":"Robótico",
+"Dark Souls":"Muerte",
+"Bloodborne":"Victoriano",
+"Cyberpunk 2077":"Neón",
+"The Witcher":"Monstruos",
+"Skyrim":"Dragones",
+"Red Dead Redemption":"Vaquero",
+"Assassin's Creed":"Capucha",
+"Far Cry":"Abierto",
+"Resident Evil":"Zombis",
+"Silent Hill":"Niebla",
+"Five Nights at Freddy's":"Animatrónicos",
+"Dead by Daylight":"Asesino",
+"Poppy Playtime":"Juguetes",
+"Little Nightmares":"Pesadilla",
+"Outlast":"Cámara",
+"Alien Isolation":"Terror",
+"Animal Crossing":"Isla",
+"The Sims":"Muñecos",
+"Terraria":"Minería",
+"Subnautica":"Submarino",
+"No Man's Sky":"Planeta",
+"Honkai Star Rail":"Gacha",
+"Zenless Zone Zero":"Urbano",
+"Wuthering Waves":"Resonadores",
+"Street Fighter":"Hadouken",
+"Mortal Kombat":"Fatality",
+"Tekken":"Mishima",
+"Dragon Ball FighterZ":"Kamehameha",
+"Guilty Gear":"Animado",
+"Brawlhalla":"Plataformas",
+"Multiversus":"Crossover",
+"King of Fighters":"Equipos",
+"NBA 2K":"Canasta",
+"F1":"Circuito",
+"Gran Turismo":"Realismo",
+"Forza Horizon":"Conducir",
+"Need for Speed":"Nitro",
+"Tetris":"Piezas",
+"Pac-Man":"Fantasmas",
+"Space Invaders":"Alienígenas",
+"Donkey Kong":"Barril",
+"Galaga":"Disparar",
+"Dead Cells":"Roguelike",
+"Enter the Gungeon":"Balas",
+"Ori":"Plataformas",
+"Undertale":"Pacifista",
+"Baba is You":"Reglas",
+"Jackbox":"Grupo",
+"Gartic Phone":"Dibujar",
+"It Takes Two":"Cooperativo",
+"A Way Out":"Fuga",
+"Goose Game":"Ganso",
+"Portal":"Agujero",
+"Half-Life":"Crowbar",
+"Left 4 Dead":"Supervivencia",
+"Team Fortress 2":"Clases",
+"Baldur's Gate 3":"Dados",
+"Disco Elysium":"Detective",
+"Outer Wilds":"Exploración",
+"Return of the Obra Dinn":"Misterio",
+"Tunic":"Zorrito",
+"Rubius":"Animación",
+"Willyrex":"Duo",
+"Vegetta777":"Skyblock",
+"Lolito":"Reacciones",
+"Luzu":"Pareja",
+"Roier":"Gracioso",
+"Quackity":"Lore",
+"JuanaGamer":"Femenina",
+"Gemita":"Artística",
+"Folagor":"Análisis",
+"Mangel":"Terror",
+"Perxitaa":"Fitness",
+"Byviruzz":"Reacciones",
+"Knekro":"Retro",
+"Westcol":"Colombia",
+"Carreraaa":"Debate",
+"Ninja":"Fortnite",
+"Shroud":"Preciso",
+"HasanAbi":"Político",
+"Moistcritical":"Comentarios",
+"Mizkif":"Drama",
+"Emiru":"Cosplay",
+"Valkyrae":"Contenido",
+"Sykkuno":"Suave",
+"Disguised Toast":"Lógica",
+"Sodapoppin":"Antiguo",
+"Summit1g":"CS",
+"Asmongold":"WoW",
+"QTCinderella":"Creadora",
+"Karl Jacobs":"MCC",
+"GeorgeNotFound":"Minecraft",
+"Sapnap":"Colaboraciones",
+"Tubbo":"Amigos",
+"Ranboo":"Alto",
+"Technoblade":"Cerdo",
+"BadBoyHalo":"Familia",
+"Skeppy":"Trolls",
+"HBomb94":"Debate",
+"Fundy":"Innovador",
+"Wilbur Soot":"Música",
+"Mark Rober":"Ingeniería",
+"Vsauce":"Filosofía",
+"Veritasium":"Ciencia",
+"Kurzgesagt":"Animado",
+"Tom Scott":"Curioso",
+"Smarter Every Day":"Experimentos",
+"NileRed":"Química",
+"PewDiePie":"Suecia",
+"Markiplier":"Terror",
+"Jacksepticeye":"Irlandés",
+"LazarBeam":"Australia",
+"VanossGaming":"GTA",
+"CrankGameplays":"Colaboraciones",
+"Midudev":"Programación",
+"Fireship":"Rápido",
+"Theo":"React",
+"Primeagen":"Terminal",
+"Adin Ross":"Reacciones",
+"KSI":"Boxeo",
+"Logan Paul":"Controversia",
+"Jake Paul":"Boxeo",
+"Ricegum":"Rap",
+"W2S":"FIFA",
+"Vikkstar":"Sidemen",
+"Tfue":"Competitivo",
+"Nickmercs":"Warzone",
+"Bugha":"Mundial",
+"Mongraal":"Joven",
+"Benjyfishy":"Creativo",
+"Caps":"Europa",
+"Jankos":"Jungler",
+"Rekkles":"ADC",
+"Perkz":"Versátil",
+"Doublelift":"ADC",
+"Tyler1":"Draven",
+"Hans Sama":"Francés",
+"Bjergsen":"Danés",
+"Outconsumer":"Análisis",
+"Staxx":"Español",
+"CriispyTeam":"Cooperativo",
+"JuanSGuarnizo":"Colombia",
+"DjMaRiiO":"FIFA",
+"Alexby11":"Hermano",
+"Rivers":"Minimalista",
+"Rock":"Guitarra",
+"Pop":"Baile",
+"Jazz":"Improvisación",
+"Blues":"Tristeza",
+"Soul":"Sentimiento",
+"R&B":"Ritmo",
+"Hip-hop":"Rima",
+"Trap":"808",
+"Reguetón":"Perreo",
+"Reggae":"Jamaica",
+"Funk":"Groove",
+"Disco":"Bola",
+"Techno":"Berlín",
+"House":"Chicago",
+"Trance":"Éxtasis",
+"Dubstep":"Wobble",
+"EDM":"Festival",
+"Country":"Sombrero",
+"Folk":"Acústico",
+"Ópera":"Soprano",
+"Clásica":"Orquesta",
+"Indie":"Independiente",
+"Alternativa":"Alternativo",
+"Grunge":"Seattle",
+"Metal":"Distorsión",
+"Heavy metal":"Melena",
+"Punk":"Rebelde",
+"Ska":"Trombón",
+"Afrobeat":"Nigeria",
+"Quevedo":"Canario",
+"C. Tangana":"Madrileño",
+"Rauw Alejandro":"Puertorriqueño",
+"J Balvin":"Colombia",
+"Maluma":"Medellín",
+"Nicki Nicole":"Argentina",
+"Mora":"Urbano",
+"Rels B":"Catalán",
+"Cruz Cafuné":"Gallego",
+"Recycled J":"Murciano",
+"Dellafuente":"Granadino",
+"Ptazeta":"Catalana",
+"Morad":"Catalán",
+"Yung Beef":"Experimental",
+"Duki":"Argentina",
+"Doja Cat":"Versátil",
+"SZA":"R&B",
+"Cardi B":"Bronx",
+"Travis Scott":"Astroworld",
+"Post Malone":"Tatuajes",
+"The Weeknd":"Oscuro",
+"Kanye West":"Polémico",
+"Jay-Z":"Empire",
+"Eminem":"Rhyme",
+"Tyler the Creator":"Peculiar",
+"Frank Ocean":"Nostálgico",
+"BLACKPINK":"YG",
+"Stray Kids":"JYP",
+"Aespa":"Virtual",
+"NewJeans":"Retro",
+"Seventeen":"Numeroso",
+"NCT":"Sistema",
+"Ive":"Debut",
+"Le Sserafim":"Poderosa",
+"The Beatles":"Liverpool",
+"Rolling Stones":"Lengua",
+"Led Zeppelin":"Zepelín",
+"Pink Floyd":"Prisma",
+"Queen":"Freddie",
+"Nirvana":"Grunge",
+"Radiohead":"Thom",
+"Red Hot Chili Peppers":"Descalzos",
+"David Bowie":"Ziggy",
+"Amy Winehouse":"Beehive",
+"Michael Jackson":"Moonwalk",
+"Madonna":"Material",
+"Prince":"Morado",
+"Whitney Houston":"Voz",
+"Adele":"Baladas",
+"Ed Sheeran":"Pelirrojo",
+"Harry Styles":"Moda",
+"Coldplay":"Colorido",
+"Depeche Mode":"Electrónico",
+"The Cure":"Gótico",
+"Sabrina Carpenter":"Dulce",
+"Chappell Roan":"Drag",
+"Gracie Abrams":"Introspectiva",
+"Charli XCX":"Brat",
+"Troye Sivan":"Australiano",
+"Better Call Saul":"Abogado",
+"The Wire":"Baltimore",
+"The Sopranos":"Jersey",
+"Game of Thrones":"Trono",
+"House of the Dragon":"Dragón",
+"Succession":"Herencia",
+"Stranger Things":"Laboratorio",
+"The Crown":"Reina",
+"Peaky Blinders":"Visera",
+"Black Mirror":"Tecnología",
+"Sherlock":"Deducción",
+"Fleabag":"Cámara",
+"Sex Education":"Instituto",
+"Invincible":"Cómic",
+"Hazbin Hotel":"Infierno",
+"One Piece":"Piratas",
+"Dragon Ball":"Saiyan",
+"Naruto":"Ninja",
+"Bleach":"Shinigami",
+"Demon Slayer":"Katana",
+"Jujutsu Kaisen":"Maldiciones",
+"My Hero Academia":"Quirks",
+"Hunter x Hunter":"Nen",
+"Death Note":"Cuaderno",
+"Fullmetal Alchemist":"Hermanos",
+"Spy x Family":"Familia",
+"Chainsaw Man":"Motosierra",
+"Vinland Saga":"Vikingo",
+"Berserk":"Espada",
+"One Punch Man":"Calvo",
+"Mob Psycho":"Poderes",
+"Re:Zero":"Revivir",
+"Sword Art Online":"Virtual",
+"Overlord":"Esqueleto",
+"Avengers Endgame":"Final",
+"El caballero oscuro":"Batman",
+"Joker":"Sonrisa",
+"Venom":"Simbionte",
+"Black Panther":"Vibranio",
+"Iron Man":"Armadura",
+"Doctor Strange":"Hechicero",
+"Star Wars":"Fuerza",
+"Harry Potter":"Magia",
+"El Señor de los Anillos":"Anillo",
+"El Hobbit":"Dragón",
+"Piratas del Caribe":"Jack",
+"Jurassic Park":"Dinosaurio",
+"Matrix":"Roja",
+"Terminator":"Cyborg",
+"Pulp Fiction":"Nonlineal",
+"El Club de la Lucha":"Jabón",
+"Forrest Gump":"Chocolates",
+"Titanic":"Barco",
+"Seven":"Pecados",
+"Toy Story":"Juguete",
+"El Rey León":"Simba",
+"Frozen":"Hielo",
+"Shrek":"Ogro",
+"Kung Fu Panda":"Po",
+"Cars":"Rayo",
+"Wall-E":"Basura",
+"Up":"Globos",
+"Inside Out":"Emociones",
+"Coco":"Difuntos",
+"Élite":"Colegio",
+"Vis a vis":"Cárcel",
+"Skam España":"Instituto",
+"Paquita Salas":"Representante",
+"Veneno":"Transgénero",
+"30 Monedas":"Demonio",
+"Fariña":"Narcotráfico",
+"Hierro":"Isla",
+"White Lotus":"Hotel",
+"The Bear":"Restaurante",
+"Severance":"Memoria",
+"Andor":"Espía",
+"Wednesday":"Miércoles",
+"Emily in Paris":"Moda",
+"Bridgerton":"Regencia",
+"Lupin":"Ladrón",
+"Narcos":"Cártel",
+"Smartphone":"Pantalla",
+"Ordenador":"Teclado",
+"Tablet":"Táctil",
+"Smartwatch":"Muñeca",
+"Auriculares":"Inalámbrico",
+"Altavoz inteligente":"Asistente",
+"Cámara":"Objetivo",
+"Drone":"Hélices",
+"Robot":"Autónomo",
+"Televisión":"Canal",
+"PlayStation":"Joystick",
+"Xbox":"Verde",
+"Nintendo Switch":"Portátil",
+"VR":"Gafas",
+"Meta Quest":"Zuckerberg",
+"Apple Vision Pro":"Cara",
+"Internet":"Global",
+"Wi-Fi":"Señal",
+"Bluetooth":"Inalámbrico",
+"USB-C":"Reversible",
+"Cargador inalámbrico":"Inductivo",
+"Router":"Antena",
+"Servidor":"Rack",
+"App":"Icono",
+"Algoritmo":"Fórmula",
+"Inteligencia artificial":"Datos",
+"Machine learning":"Entrena",
+"Claude":"Anthropic",
+"Gemini":"Google",
+"Midjourney":"Imagen",
+"Stable Diffusion":"Abierto",
+"Sora":"Vídeo",
+"Copilot":"Microsoft",
+"RAM":"Volátil",
+"SSD":"Rápido",
+"Tarjeta gráfica":"Render",
+"Placa base":"Central",
+"Refrigeración líquida":"Tubos",
+"Instagram":"Fotos",
+"YouTube":"Vídeos",
+"Twitter":"Pájaro",
+"Facebook":"Zuckerberg",
+"Snapchat":"Desaparece",
+"Reddit":"Karma",
+"Telegram":"Cifrado",
+"WhatsApp":"Verde",
+"BeReal":"Espontáneo",
+"Threads":"Meta",
+"Twitch":"Morado",
+"Blockchain":"Descentralizado",
+"Criptomoneda":"Digital",
+"Bitcoin":"Minería",
+"Ethereum":"Contratos",
+"VRChat":"Avatar",
+"Spotify":"Verde",
+"Apple Music":"Manzana",
+"SoundCloud":"Naranja",
+"Netflix":"Rojo",
+"Discord Nitro":"Suscripción",
+"Spotify Premium":"Anuncios",
+"Xbox Game Pass":"Catálogo",
+"PlayStation Plus":"Online",
+"Steam":"Biblioteca",
+"Epic Games":"Gratuito",
+"Hacker":"Código",
+"Malware":"Daña",
+"Virus":"Replica",
+"Ransomware":"Rescate",
+"Firewall":"Barrera",
+"Bug":"Error",
+"Contraseña":"Seguridad",
+"Meme":"Viral",
+"Trending":"Popular",
+"Hashtag":"Almohadilla",
+"Stories":"24h",
+"Reel":"Corto",
+"Short":"YouTube",
+"Stream":"Directo",
+"Clip":"Recorte",
+"Highlight":"Destacado",
+"Deepfake":"Falso",
+"QR":"Escanear",
+"NFC":"Aproximar",
+"5G":"Velocidad",
+"Fibra óptica":"Luz",
+"Servidor en la nube":"Remoto",
+"Big Data":"Masivo",
+"Prompt":"Instrucción",
+"Token":"Unidad",
+"API":"Interfaz",
+"Cristiano Ronaldo":"Goles",
+"Mbappé":"Velocidad",
+"Vinicius":"Regate",
+"Pedri":"Técnica",
+"Gavi":"Presión",
+"Bellingham":"Inglés",
+"Lamine Yamal":"Joven",
+"Haaland":"Máquina",
+"Neymar":"Habilidad",
+"LeBron James":"Rey",
+"Stephen Curry":"Triples",
+"Luka Dončić":"Eslovenia",
+"Giannis Antetokounmpo":"Griego",
+"Nikola Jokic":"Serbio",
+"Victor Wembanyama":"Alto",
+"Lewis Hamilton":"Títulos",
+"Carlos Sainz":"Ferrari",
+"Fernando Alonso":"Veterano",
+"Charles Leclerc":"Mónaco",
+"Lando Norris":"Joven",
+"George Russell":"Mercedes",
+"Sergio Pérez":"México",
+"Oscar Piastri":"Australiano",
+"Rafa Nadal":"Arcilla",
+"Djokovic":"Récord",
+"Federer":"Elegante",
+"Iga Świątek":"Polonia",
+"Aryna Sabalenka":"Bielorrusia",
+"Coco Gauff":"Joven",
+"Emma Raducanu":"Britania",
+"Jannik Sinner":"Italiano",
+"Timothée Chalamet":"Actor",
+"Florence Pugh":"Inglesa",
+"Sydney Sweeney":"Rubia",
+"Jacob Elordi":"Alto",
+"Barry Keoghan":"Irlandés",
+"Paul Mescal":"Irlandés",
+"Anya Taylor-Joy":"Ajedrez",
+"Hunter Schafer":"Modelo",
+"Tom Holland":"Acróbata",
+"Ryan Gosling":"Canadiense",
+"Margot Robbie":"Barbie",
+"Cate Blanchett":"Versátil",
+"Mark Zuckerberg":"Facebook",
+"Jeff Bezos":"Amazon",
+"Bill Gates":"Windows",
+"Sam Altman":"OpenAI",
+"Jensen Huang":"Nvidia",
+"Sundar Pichai":"Google",
+"Tim Cook":"Apple",
+"Carlo Ancelotti":"Sonrisa",
+"Diego Simeone":"Atlético",
+"Klopp":"Intenso",
+"Mourinho":"Especial",
+"Ronaldinho":"Samba",
+"Maradona":"Dios",
+"Pelé":"Brasil",
+"Cruyff":"Total",
+"Usain Bolt":"Sprinter",
+"Michael Phelps":"Nadador",
+"Caeleb Dressel":"Rápido",
+"Léon Marchand":"Francés",
+"Katie Ledecky":"Resistencia",
+"Caitlin Clark":"Basket",
+"Kylie Jenner":"Labios",
+"Kim Kardashian":"Reality",
+"Kendall Jenner":"Modelo",
+"Miley Cyrus":"Hannah",
+"Selena Gomez":"Disney",
+"Lady Gaga":"Extravagante",
+"Justin Bieber":"Canadiense",
+"Shawn Mendes":"Guitarra",
+"Kylie Minogue":"Australia",
+"Shakira":"Colombia",
+"Ozzy Osbourne":"Murciélago",
+"Roger Waters":"Floyd",
+"Bruce Springsteen":"Boss",
+"Elton John":"Piano",
+"Paul McCartney":"Beatle",
+"Alegría":"Reír",
+"Tristeza":"Llorar",
+"Miedo":"Temblar",
+"Ira":"Explotar",
+"Sorpresa":"Inesperado",
+"Asco":"Repulsión",
+"Amor":"Latir",
+"Odio":"Rencor",
+"Envidia":"Verde",
+"Celos":"Posesión",
+"Vergüenza":"Rubor",
+"Culpa":"Remordimiento",
+"Orgullo":"Pecho",
+"Esperanza":"Futuro",
+"Desesperación":"Rendirse",
+"Ansiedad":"Nudo",
+"Estrés":"Presión",
+"Calma":"Respirar",
+"Euforia":"Eufórico",
+"Melancolía":"Gris",
+"Nostalgia":"Recuerdos",
+"Soledad":"Aislamiento",
+"Aburrimiento":"Vacío",
+"Curiosidad":"Explorar",
+"Admiración":"Admirar",
+"Desconfianza":"Sospecha",
+"Cariño":"Abrazo",
+"Compasión":"Ayudar",
+"Empatía":"Sentir",
+"Antipatía":"Rechazo",
+"Entusiasmo":"Energía",
+"Valentía":"Atreverse",
+"Inseguridad":"Dudar",
+"Humildad":"Sencillo",
+"Arrogancia":"Superioridad",
+"Gratitud":"Agradecer",
+"Lealtad":"Fiel",
+"Traición":"Cuchillada",
+"Sinceridad":"Verdad",
+"Cinismo":"Sarcasmo",
+"Cancelado":"Boicot",
+"Woke":"Consciente",
+"Stan":"Obsesionado",
+"Doomscrolling":"Negatividad",
+"Cap":"Mentir",
+"No cap":"Verdad",
+"Slay":"Triunfar",
+"Lowkey":"Secreto",
+"Highkey":"Obvio",
+"Vibe":"Ambiente",
+"Mood":"Actitud",
+"Skill issue":"Culpa",
+"Touch grass":"Desconectar",
+"Character development":"Cambio",
+"Main character":"Protagonista",
+"Villain arc":"Malvado",
+"Redemption arc":"Redimirse",
+"Glowup":"Mejorar",
+"Era":"Etapa",
+"Crush":"Gustar",
+"Orbitar":"Rodear",
+"Stalkear":"Espiar",
+"Enamorarse":"Mariposas",
+"Desamor":"Roto",
+"Ruptura":"Separarse",
+"Reconciliación":"Volver",
+"Toxicidad":"Dañar",
+"Procrastinar":"Retrasar",
+"Autosabotaje":"Obstaculizar",
+"Manifestar":"Atraer",
+"Mindfulness":"Presente",
+"Autocuidado":"Cuidarse",
+"Healing era":"Sanando",
+"Flop era":"Caída",
+"Hyperfixación":"Obsesión",
+"Overstimulación":"Saturado",
+"Disociación":"Desconexión",
+"Masking":"Fingir",
+"Safe space":"Seguro",
+"Trigger":"Detonante",
+"Cope":"Gestionar",
+"Delulu":"Ilusorio",
+"Silla":"Sentarse",
+"Mesa":"Superficie",
+"Sofá":"Cómodo",
+"Cama":"Dormir",
+"Armario":"Ropa",
+"Estantería":"Libros",
+"Lámpara":"Iluminar",
+"Espejo":"Reflejo",
+"Alfombra":"Suelo",
+"Cortina":"Ventana",
+"Cojín":"Blando",
+"Manta":"Abrigar",
+"Almohada":"Cabeza",
+"Sábana":"Tela",
+"Toalla":"Secar",
+"Jabón":"Limpiar",
+"Champú":"Cabello",
+"Secador":"Pelo",
+"Plancha":"Arrugas",
+"Lavadora":"Centrifugar",
+"Secadora":"Tambor",
+"Nevera":"Frío",
+"Microondas":"Radiación",
+"Horno":"Temperatura",
+"Cafetera":"Expresso",
+"Tostadora":"Rebanada",
+"Batidora":"Mezclar",
+"Aspiradora":"Succión",
+"Escoba":"Barrer",
+"Cubo":"Agua",
+"Detergente":"Manchas",
+"Bayeta":"Fregar",
+"Esponja":"Poros",
+"Ducha":"Alcachofa",
+"Bañera":"Bañarse",
+"Inodoro":"Cisterna",
+"Grifo":"Agua",
+"Persiana":"Oscurecer",
+"Puerta":"Bisagra",
+"Ventana":"Cristal",
+"Balcón":"Exterior",
+"Mando a distancia":"Pilas",
+"Cargador":"Cable",
+"Enchufe":"Corriente",
+"Bombilla":"Luz",
+"Ventilador":"Aspas",
+"Aire acondicionado":"Fresco",
+"Calefacción":"Radiador",
+"Llave":"Metal",
+"Cerradura":"Cilindro",
+"Timbre":"Llamar",
+"Buzón":"Cartas",
+"Ascensor":"Botones",
+"Escalera":"Peldaños",
+"Bolígrafo":"Tinta",
+"Cuaderno":"Hojas",
+"Carpeta":"Clasificar",
+"Mochila":"Llevar",
+"Calculadora":"Números",
+"Tijeras":"Cortar",
+"Pegamento":"Unir",
+"Regla":"Medir",
+"Compás":"Círculo",
+"Cartera":"Dinero",
+"Monedero":"Monedas",
+"Llavero":"Colgar",
+"Paraguas":"Lluvia",
+"Guantes":"Manos",
+"Bufanda":"Cuello",
+"Gorro":"Cabeza",
+"Gafas":"Lentes",
+"Reloj":"Tiempo",
+"Botella de agua":"Hidratación",
+"Cinta adhesiva":"Transparente",
+"Papel de aluminio":"Cocina",
+"Tenedor":"Pinchar",
+"Cuchillo":"Cortar",
+"Cuchara":"Sopear",
+"Plato":"Comer",
+"Taza":"Bebida",
+"Vaso":"Agua",
+"Copa":"Vino",
+"Bol":"Ensalada",
+"Cazuela":"Cocinar",
+"Sartén":"Freír",
+"Olla":"Hervir",
+"Rallador":"Queso",
+"Tabla de cortar":"Madera",
+"Abrebotellas":"Chapas",
+"Sacacorchos":"Corcho",
+"Abrelatas":"Lata",
+"Pingüino":"Antártico",
+"Cocodrilo":"Reptil",
+"Águila":"Rapaz",
+"Pulpo":"Camuflaje",
+"Tiburón":"Aleta",
+"Ballena":"Mamífero",
+"Mariposa":"Crisálida",
+"Araña":"Seda",
+"Flamenco":"Zancuda",
+"Koala":"Eucalipto",
+"Oso polar":"Ártico",
+"Murciélago":"Ultrasonidos",
+"Volcán":"Magma",
+"Arrecife":"Coral",
+"Glaciar":"Hielo",
+"Sushi":"Arroz",
+"Paella":"Azafrán",
+"Tortilla de patatas":"Patata",
+"Gazpacho":"Frío",
+"Salmorejo":"Córdoba",
+"Churros":"Chocolate",
+"Crema catalana":"Quemado",
+"Tiramisú":"Café",
+"Fondue":"Fundido",
+"Ramen":"Fideos",
+"Mochi":"Glutinoso",
+"Baklava":"Miel",
+"Tempura":"Rebozado",
+"Bibimbap":"Coreano",
+"Esgrima":"Espada",
+"Curling":"Hielo",
+"Waterpolo":"Piscina",
+"Capoeira":"Baile",
+"Slackline":"Equilibrio",
+"Petanca":"Boliche",
+"Hurling":"Irlanda",
+"Padel":"Cristal",
+"Bouldering":"Escalada",
+"Japón":"Anime",
+"Brasil":"Amazónica",
+"Noruega":"Fiordos",
+"Singapur":"Ultramoderna",
+"Dubai":"Rascacielos",
+"Nueva York":"Estatua",
+"Tokio":"Poblada",
+"Barcelona":"Gaudí",
+"Minecraft":"Bloques",
+"Fortnite":"Paracaídas",
+"Among Us":"Traidor",
+"Stardew Valley":"Granja",
+"Genshin Impact":"Anime",
+"Hollow Knight":"Insecto",
+"Phasmophobia":"Fantasmas",
+"Elden Ring":"Difícil",
+"Cuphead":"Dibujado",
+"Rocket League":"Cohetes",
+"Ibai":"Velada",
+"TheGrefg":"Récord",
+"xQc":"Reacciones",
+"MrBeast":"Millonario",
+"Dream":"Speedrun",
+"Pokimane":"Fortnite",
+"Auronplay":"Sarcástico",
+"Spreen":"Argentino",
+"IShowSpeed":"Explosivo",
+"Faker":"Invicto",
+"Rosalía":"Flamenco",
+"Bizarrap":"Sesiones",
+"Bad Bunny":"Reguetón",
+"K-pop":"Coreografías",
+"Drill":"Chicago",
+"Taylor Swift":"Fenómeno",
+"Billie Eilish":"Oscuro",
+"Kendrick Lamar":"Pulitzer",
+"BTS":"Army",
+"Breaking Bad":"Química",
+"Squid Game":"Infantiles",
+"Attack on Titan":"Murallas",
+"Dark":"Tiempo",
+"The Boys":"Corrupción",
+"Euphoria":"Drogas",
+"Dune":"Especia",
+"Interstellar":"Agujero",
+"La Casa de Papel":"Máscaras",
+"El Padrino":"Mafia",
+"ChatGPT":"Conversacional",
+"TikTok":"Adictivo",
+"Discord":"Gamers",
+"Steam Deck":"Portátil",
+"NFT":"Blockchain",
+"Metaverso":"Avatar",
+"VPN":"Privacidad",
+"Phishing":"Estafa",
+"GPU":"Píxeles",
+"Messi":"Balones",
+"Elon Musk":"SpaceX",
+"Zendaya":"Euphoria",
+"Carlos Alcaraz":"Wimbledon",
+"Simone Biles":"Olímpica",
+"Pedro Pascal":"Mandalorian",
+"Max Verstappen":"Tetracampeón",
+"Zidane":"Champions",
+"Pep Guardiola":"Táctico",
+"FOMO":"Perderse",
+"Burnout":"Agotamiento",
+"Ghostear":"Desaparecer",
+"Gaslighting":"Manipulación",
+"Love bombing":"Bombardeo",
+"Situationship":"Ambiguo",
+"Red flag":"Alerta",
+"Rizz":"Ligar",
+"Parasocial":"Unilateral",
+"Fregona":"Palo",
+"Lavavajillas":"Automático",
+"Grapadora":"Grapas",
+"Fiambrera":"Hermético",
+"Colador":"Agujeros",
+"Pelador":"Piel",
+"Termo":"Aislante",
+"Candado":"Seguridad",
+"Regleta":"Enchufes",
+"Embudo":"Cono"
+}
 function getKeyword(word,theme){return KEYWORDS[word]||null}
 function buildHintHTML(word,theme){
   const mode=S.hintMode||'palabra';
   if(mode==='ninguna') return '<div style="font-size:13px;color:var(--muted);margin-top:14px;text-align:center">Sin pista — ¡mucha suerte!</div>';
   if(mode==='categoria') return `<div class="hint-box"><div class="hint-label">🏷️ Categoría</div><div class="hint-text">${theme}</div></div>`;
-  // mode === 'palabra'
+  // mode === 'palabra' — solo muestra si hay keyword específica
   const kw=getKeyword(word,theme);
-  const display=kw||theme;
-  return `<div class="hint-box"><div class="hint-label">💡 Pista</div><div class="hint-text">${display}</div></div>`;
+  if(!kw) return '<div style="font-size:13px;color:var(--muted);margin-top:14px;text-align:center">Sin pista para esta palabra — ¡mucha suerte!</div>';
+  return `<div class="hint-box"><div class="hint-label">💡 Pista</div><div class="hint-text">${kw}</div></div>`;
 }
 
 // ═══════════════════════════════════════
@@ -640,36 +1912,44 @@ function playAgain(){
 async function initCreateRoom(){
   goTo('screen-create-lobby');
   renderThemeGrid('ol-theme-grid');
-  const code=String(Math.floor(100+Math.random()*900));
-  S.roomCode=code;S.isHost=true;S.isOnline=true;S.myName='Host';
+  // 3-digit code, padded
+  const code = String(Math.floor(100+Math.random()*900));
+  S.roomCode=code; S.isHost=true; S.isOnline=true; S.myName='Host';
   document.getElementById('host-code').textContent=code;
-  await fbSet(`rooms/${code}`,{host:'Host',status:'waiting',config:{impostors:1,timer:60,themes:[]},players:{Host:{name:'Host',ready:false}},game:null});
+  const room = {host:'Host', status:'waiting', players:{Host:{name:'Host',ready:false}}, game:null, ts:Date.now()};
+  await roomCreate(code, room);
   startLobbyPoll();
 }
 
 function startLobbyPoll(){
-  if(S.lobbyInterval)clearInterval(S.lobbyInterval);
-  S.lobbyInterval=fbListen(`rooms/${S.roomCode}`,onRoomUpdate,2500);
+  if(S.lobbyInterval) fbStopListen(S.lobbyInterval);
+  S.lobbyInterval = fbListen(S.roomCode, onRoomUpdate, 1500);
 }
 
 function onRoomUpdate(room){
-  if(!room)return;
-  const players=Object.values(room.players||{});
+  if(!room) return;
+  const players = Object.values(room.players||{});
+
   if(S.isHost){
-    document.getElementById('lobby-count').textContent=players.length;
+    const el = document.getElementById('lobby-count');
+    if(el) el.textContent = players.length;
     renderLobbyList(players,'lobby-player-list');
-  }else{
+  } else {
     renderLobbyList(players,'guest-player-list');
   }
-  if(room.status==='started'&&room.game){
-    clearInterval(S.lobbyInterval);
-    const game=room.game;
-    const myEntry=(game.roles||[]).find(r=>r.name===S.myName);
+
+  // Game started — route each player to their word reveal
+  if(room.status==='started' && room.game){
+    fbStopListen(S.lobbyInterval);
+    S.lobbyInterval = null;
+    const game = room.game;
+    const myEntry = (game.roles||[]).find(r=>r.name===S.myName);
     if(myEntry){
-      S.word=game.word;S.theme=game.theme;S.timerSeconds=game.timer;
-      S.impostorNames=game.impostorNames;S.players=Object.keys(room.players||{});
+      S.word=game.word; S.theme=game.theme; S.timerSeconds=game.timer;
+      S.impostorNames=game.impostorNames;
+      S.players=players.map(p=>p.name);
       S.hintMode=game.hintMode||'palabra';
-      showOnlineWord(myEntry.isImpostor,game.word,game.theme);
+      showOnlineWord(myEntry.isImpostor, game.word, game.theme);
     }
   }
 }
@@ -680,40 +1960,73 @@ function renderLobbyList(players,listId){
 }
 
 async function hostStartGame(){
-  const themes=S.selectedThemes;
-  if(!themes.length){alert('Selecciona al menos una categoría');return}
-  const room=await fbGet(`rooms/${S.roomCode}`);if(!room){alert('Sala no encontrada');return}
-  const players=Object.values(room.players||{}).map(p=>p.name);
-  const impostors=parseInt(document.getElementById('ol-impostors').value);
-  const timer=parseInt(document.getElementById('ol-timer').value);
-  if(impostors>=players.length){alert('Demasiados impostores para los jugadores conectados');return}
-  const picked=pickWord(themes);if(!picked){alert('No quedan palabras activas');return}
-  const sh=[...players].sort(()=>Math.random()-.5);
-  const roles=sh.map((n,i)=>({name:n,isImpostor:i<impostors}));roles.sort(()=>Math.random()-.5);
-  const impostorNames=roles.filter(r=>r.isImpostor).map(r=>r.name);
-  S.word=picked.word;S.theme=picked.theme;S.timerSeconds=timer;S.impostors=impostors;
-  S.impostorNames=impostorNames;S.players=players;S.roles=roles;
-  await fbPatch(`rooms/${S.roomCode}`,{status:'started',game:{word:picked.word,theme:picked.theme,timer,impostors,impostorNames,roles,hintMode:S.hintMode}});
-  const myRole=roles.find(r=>r.name==='Host');
-  if(myRole)showOnlineWord(myRole.isImpostor,picked.word,picked.theme);
+  const themes = S.selectedThemes;
+  if(!themes.length){ alert('Selecciona al menos una categoría'); return; }
+  const room = await roomGet(S.roomCode);
+  if(!room){ alert('Error: sala no encontrada'); return; }
+  const players = Object.values(room.players||{}).map(p=>p.name);
+  if(players.length < 2){ alert('Necesitas al menos 2 jugadores además del host'); return; }
+  const impostors = parseInt(document.getElementById('ol-impostors').value);
+  const timer = parseInt(document.getElementById('ol-timer').value);
+  if(impostors >= players.length){ alert('Demasiados impostores para los jugadores conectados'); return; }
+  const picked = pickWord(themes);
+  if(!picked){ alert('No quedan palabras activas. Restaura algunas en el menú'); return; }
+  const sh = [...players].sort(()=>Math.random()-.5);
+  const roles = sh.map((n,i)=>({name:n, isImpostor:i<impostors}));
+  roles.sort(()=>Math.random()-.5);
+  const impostorNames = roles.filter(r=>r.isImpostor).map(r=>r.name);
+  S.word=picked.word; S.theme=picked.theme; S.timerSeconds=timer;
+  S.impostors=impostors; S.impostorNames=impostorNames; S.players=players; S.roles=roles;
+  // Write full updated room state
+  const updatedRoom = Object.assign({}, room, {
+    status:'started',
+    game:{word:picked.word, theme:picked.theme, timer, impostors, impostorNames, roles, hintMode:S.hintMode},
+    ts:Date.now()
+  });
+  await roomSet(S.roomCode, updatedRoom);
+  const myRole = roles.find(r=>r.name==='Host');
+  if(myRole) showOnlineWord(myRole.isImpostor, picked.word, picked.theme);
 }
 
 // ═══════════════════════════════════════
 // ONLINE — UNIRSE
 // ═══════════════════════════════════════
 async function joinRoom(){
-  const name=document.getElementById('join-name').value.trim();
-  const code=document.getElementById('join-code').value.trim();
-  if(!name){alert('Escribe tu nombre');return}
-  if(code.length!==3){alert('El código debe tener exactamente 3 dígitos');return}
-  const room=await fbGet(`rooms/${code}`);
-  if(!room||room===null){alert('Sala no encontrada. Comprueba el código.');return}
-  if(room.status!=='waiting'){alert('La partida ya ha comenzado, no puedes unirte');return}
-  const existing=Object.keys(room.players||{});
-  if(existing.includes(name)){alert('Ese nombre ya está en uso en esta sala. Elige otro.');return}
-  S.roomCode=code;S.myName=name;S.isHost=false;S.isOnline=true;
-  await fbPatch(`rooms/${code}/players`,{[name]:{name,ready:false}});
-  document.getElementById('guest-code').textContent=code;
+  const name = document.getElementById('join-name').value.trim();
+  const code  = document.getElementById('join-code').value.trim();
+  if(!name){ alert('Escribe tu nombre'); return; }
+  if(code.length !== 3){ alert('El código debe tener exactamente 3 dígitos'); return; }
+
+  const room = await roomGet(code);
+
+  // Room doesn't exist at all
+  if(!room){
+    alert('Sala no encontrada. Comprueba que el código sea correcto y que el host haya creado la sala.');
+    return;
+  }
+
+  // Room exists but game already started
+  if(room.status === 'started'){
+    alert('La partida ya ha empezado. Pide al host que cree una nueva sala.');
+    return;
+  }
+
+  // Duplicate name
+  const existing = Object.keys(room.players||{});
+  if(existing.includes(name)){
+    alert('Ese nombre ya está en uso. Elige otro.');
+    return;
+  }
+
+  S.roomCode=code; S.myName=name; S.isHost=false; S.isOnline=true;
+
+  // Add player to room
+  const updatedRoom = Object.assign({}, room);
+  updatedRoom.players = Object.assign({}, room.players, {[name]:{name, ready:false}});
+  updatedRoom.ts = Date.now();
+  await roomSet(code, updatedRoom);
+
+  document.getElementById('guest-code').textContent = code;
   startLobbyPoll();
   goTo('screen-guest-lobby');
 }
@@ -738,27 +2051,54 @@ function showOnlineWord(isImpostor,word,theme){
 async function onlinePlayerReady(){
   document.getElementById('ol-ready-btn').disabled=true;
   document.getElementById('ol-waiting-msg').textContent='Esperando al resto de jugadores…';
-  await fbPatch(`rooms/${S.roomCode}/players/${S.myName}`,{ready:true});
-  const check=setInterval(async()=>{
-    const room=await fbGet(`rooms/${S.roomCode}`);if(!room)return;
-    const players=Object.values(room.players||{});
-    if(players.every(p=>p.ready)){
+
+  // Mark myself ready
+  const room = await roomGet(S.roomCode);
+  if(!room) return;
+  const updatedRoom = Object.assign({}, room);
+  updatedRoom.players = Object.assign({}, room.players);
+  updatedRoom.players[S.myName] = Object.assign({}, updatedRoom.players[S.myName], {ready:true});
+  updatedRoom.ts = Date.now();
+  await roomSet(S.roomCode, updatedRoom);
+
+  // Poll until everyone is ready
+  const check = setInterval(async()=>{
+    const r = await roomGet(S.roomCode);
+    if(!r) return;
+    const players = Object.values(r.players||{});
+    if(players.length > 0 && players.every(p=>p.ready)){
       clearInterval(check);
-      S.players=players.map(p=>p.name);
-      const updates={};players.forEach(p=>updates[p.name]={...p,ready:false});
-      await fbPatch(`rooms/${S.roomCode}/players`,updates);
-      startTimer();goTo('screen-timer');
+      S.players = players.map(p=>p.name);
+      // Reset all ready flags
+      const reset = Object.assign({}, r);
+      reset.players = {};
+      players.forEach(p=>{ reset.players[p.name]={...p, ready:false}; });
+      reset.ts = Date.now();
+      await roomSet(S.roomCode, reset);
+      startTimer(); goTo('screen-timer');
     }
-  },2500);
+  }, 1500);
 }
 
 async function leaveRoom(){
   if(S.roomCode){
-    if(S.isHost)await fbDel(`rooms/${S.roomCode}`);
-    else await fbDel(`rooms/${S.roomCode}/players/${S.myName}`);
+    if(S.isHost){
+      // Host leaves: delete the whole room
+      await roomDel(S.roomCode);
+    } else {
+      // Guest leaves: remove just their player entry
+      const room = await roomGet(S.roomCode);
+      if(room && room.players){
+        const updated = Object.assign({}, room);
+        updated.players = Object.assign({}, room.players);
+        delete updated.players[S.myName];
+        updated.ts = Date.now();
+        await roomSet(S.roomCode, updated);
+      }
+    }
   }
-  if(S.lobbyInterval)clearInterval(S.lobbyInterval);
-  S.roomCode=null;S.isOnline=false;S.isHost=false;S.myName=null;S.lobbyInterval=null;
+  if(S.lobbyInterval){ fbStopListen(S.lobbyInterval); }
+  S.roomCode=null; S.isOnline=false; S.isHost=false; S.myName=null; S.lobbyInterval=null;
   goTo('screen-home');
 }
 
